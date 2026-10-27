@@ -131,3 +131,23 @@ test("every glyph in the installed Omarchy has a drawing", { skip: !installed &&
     for (const cp of privateUse(text)) if (!I.drawingFor(id, g(cp), {})) missing.push(id + " " + cp)
   assert.deepStrictEqual(missing, [])
 })
+
+// Qt's V4 engine splits strings into UTF-16 units, so a glyph above U+FFFF reaches
+// split() as two surrogates. These literals are explicit surrogate pairs.
+test("high-plane glyphs written as surrogate pairs", () => {
+  assert.deepStrictEqual(I.split("󰈀"), { key: "f0200", label: "" })
+  assert.strictEqual(I.drawingFor("omarchy.network", "󰈀", {}).name, "ethernet")
+  assert.deepStrictEqual(I.split("73% 󰁹"), { key: "f0079", label: "73%" })
+  const d = I.drawingFor("omarchy.power", "73% 󰁽", {})
+  assert.strictEqual(d.kind, "battery")
+  assert.strictEqual(d.label, "73%")
+})
+
+const usesCodePointApis = src => /\b(Array\.from|codePointAt)\b/.test(src.replace(/\/\/.*$/gm, ""))
+
+test("Icons.js avoids Array.from and codePointAt (Qt V4 iterates UTF-16 units, see split())", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "Icons.js"), "utf8")
+  assert.strictEqual(usesCodePointApis(src), false)
+  // The check itself catches the old implementation.
+  assert.strictEqual(usesCodePointApis('var chars = Array.from(String(text || ""))\nchars[i].codePointAt(0)'), true)
+})
