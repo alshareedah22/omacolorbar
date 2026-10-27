@@ -122,6 +122,12 @@ Item {
   // PopupCard closes its owner on an outside click.
   function close() { menuOpen = false; moreOpen = false }
 
+  function hideIconTooltips() {
+    for (var i = 0; i < iconRepeater.count; i++) bar.hideTooltip(iconRepeater.itemAt(i))
+  }
+  onMenuOpenChanged: if (menuOpen && bar) { bar.hideTooltip(more); hideIconTooltips() }
+  onMoreOpenChanged: if (moreOpen && bar) { bar.hideTooltip(more); hideIconTooltips() }
+
   onEnabledChanged: if (enabled) { readApps(); refresh() }
   onHiddenAllChanged: refresh()
   onTrayKeysChanged: refresh()
@@ -151,7 +157,8 @@ Item {
     required property var group
     width: row.slot
     height: row.slot
-    readonly property bool tooltipHovered: visible && iconMouse.containsMouse
+    // No tooltip while a card is open: it would sit on top of the card and take its clicks.
+    readonly property bool tooltipHovered: visible && iconMouse.containsMouse && !row.menuOpen && !row.moreOpen
 
     Image {
       id: image
@@ -215,6 +222,7 @@ Item {
     spacing: 0
 
     Repeater {
+      id: iconRepeater
       model: row.shown
       delegate: AppIcon { required property var modelData; group: modelData }
     }
@@ -225,7 +233,7 @@ Item {
       visible: row.overflow.length > 0
       width: visible ? row.slot : 0
       height: visible ? row.slot : 0
-      readonly property bool tooltipHovered: visible && moreMouse.containsMouse
+      readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.menuOpen && !row.moreOpen
       Text {
         anchors.centerIn: parent
         text: "+" + row.overflow.length
@@ -240,7 +248,7 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onEntered: if (row.bar) row.bar.showTooltip(more, row.overflow.length + " more open apps")
+        onEntered: if (row.bar) row.bar.showTooltip(more, row.overflow.length + (row.overflow.length === 1 ? " more open app" : " more open apps"))
         onExited: if (row.bar) row.bar.hideTooltip(more)
         onClicked: function(mouse) {
           if (mouse.button === Qt.RightButton) {
