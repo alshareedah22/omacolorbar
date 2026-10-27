@@ -55,6 +55,17 @@ This puts the backup back and removes it. Any changes made since the swap, inclu
 
 You can also set the entries back by hand: replace `{"id":"blackcode.omacolorbar","icon":"omarchy.audio"}` with `{"id":"omarchy.audio"}`. The widget's settings stay in `plugins[]`, where Omarchy still reads them.
 
+## Remove
+
+Put the original bar back first, then remove the plugin:
+
+```bash
+~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar restore
+omarchy plugin remove blackcode.omacolorbar
+```
+
+If the backup is gone, replace each `{"id": "blackcode.omacolorbar", "icon": "<id>"}` entry in `~/.config/omarchy/shell.json` with `{"id": "<id>"}` before removing the plugin.
+
 ## When Omarchy changes
 
 - A widget state with no color glyph yet falls back to the original glyph, so nothing goes blank.
