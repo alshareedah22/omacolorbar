@@ -11,6 +11,8 @@ Item {
   property var host: null
   property bool enabled: false
   property var adapted: []
+  property var adaptedKeys: []
+  property var shownKeys: []
   property var apps: []
 
   function readApps() {
@@ -52,18 +54,26 @@ Item {
     if (trayIcon.children.length > 1) trayIcon.children[1].visible = Qt.binding(function() { return trayIcon.symbolic })
   }
 
-  // True once the icon was given an app icon (or put back after a load error), so it is not
-  // adapted again; an unmatched icon returns false and is tried again on the next scan.
+  // Returns the desktop id of the app the icon was given ("" when it has none or was put back
+  // after a load error), so it is not adapted again; an unmatched icon returns null and is
+  // tried again on the next scan.
   function adapt(trayIcon) {
     var data = trayIcon.parent ? trayIcon.parent.modelData : null
-    if (!data) return false
-    var source = sourceFor(Apps.matchApp({ id: data.id, title: data.title, tooltipTitle: data.tooltipTitle }, apps))
-    if (source === "") return false
+    if (!data) return null
+    var entry = Apps.matchAppEntry({ id: data.id, title: data.title, tooltipTitle: data.tooltipTitle }, apps)
+    var source = sourceFor(entry ? String(entry.icon) : "")
+    if (source === "") return null
     var image = trayIcon.children[0]
     var restored = false
     function check() {
       if (restored || image.status !== Image.Error) return
       restored = true
+      var at = adapter.adapted.indexOf(trayIcon)
+      if (at !== -1) {
+        var ks = adapter.adaptedKeys.slice()
+        ks[at] = ""
+        adapter.adaptedKeys = ks
+      }
       console.warn("[omacolorbar] tray: " + source + " failed to load; using the tray's own image")
       adapter.restore(trayIcon)
     }
@@ -75,20 +85,38 @@ Item {
     image.layer.enabled = false
     if (trayIcon.children.length > 1) trayIcon.children[1].visible = false
     check()
-    return true
+    return restored || !entry.desktopId ? "" : String(entry.desktopId)
   }
 
   function scan() {
-    var live = adapted.filter(function(item) { return item })
+    var live = []
+    var liveKeys = []
+    for (var j = 0; j < adapted.length; j++) {
+      if (!adapted[j]) continue
+      live.push(adapted[j])
+      liveKeys.push(adaptedKeys[j])
+    }
     var found = trayIcons(host, 0, [])
     for (var i = 0; i < found.length; i++) {
       if (live.indexOf(found[i]) !== -1) continue
-      if (adapt(found[i])) live.push(found[i])
+      var key = adapt(found[i])
+      if (key === null) continue
+      live.push(found[i])
+      liveKeys.push(key)
     }
     adapted = live
+    adaptedKeys = liveKeys
+    var keys = []
+    for (var k = 0; k < adapted.length; k++)
+      if (adapted[k] && adaptedKeys[k] !== "" && keys.indexOf(adaptedKeys[k]) === -1) keys.push(adaptedKeys[k])
+    if (JSON.stringify(keys) !== JSON.stringify(shownKeys)) shownKeys = keys
   }
 
-  onHostChanged: adapted = []
+  onHostChanged: {
+    adapted = []
+    adaptedKeys = []
+    shownKeys = []
+  }
   Component.onCompleted: readApps()
 
   Connections {

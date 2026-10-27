@@ -22,6 +22,7 @@ PALETTE = {
     "agents": ("#8b5cf6", "#ec4899", "#fce7f3"),
     "tailscale": ("#64748b", "#e2e8f0", "#ffffff"),
     "warning": ("#f59e0b", "#fcd34d", "#78350f"),
+    "app": ("#64748b", "#94a3b8", "#334155"),
     "omarchy": ("#c8e69c", "#5e9a35", "#a8cd76"),
 }
 
@@ -219,6 +220,11 @@ ICONS = {
         '<path d="M32 6 L60 56 H4 Z" fill="url(#a)" stroke="url(#a)" stroke-width="4" stroke-linejoin="round"/>'
         '<path d="M32 24 V38" fill="none" stroke="ACCENT" stroke-width="6" stroke-linecap="round"/>'
         '<circle cx="32" cy="47" r="3.5" fill="ACCENT"/>'),
+    "app": lambda: icon("app", '<rect x="8" y="8" width="48" height="48" rx="12" fill="url(#a)"/>'
+                               '<rect x="20" y="20" width="10" height="10" rx="2" fill="#ffffff" opacity=".9"/>'
+                               '<rect x="34" y="20" width="10" height="10" rx="2" fill="#ffffff" opacity=".9"/>'
+                               '<rect x="20" y="34" width="10" height="10" rx="2" fill="#ffffff" opacity=".9"/>'
+                               '<rect x="34" y="34" width="10" height="10" rx="2" fill="#ffffff" opacity=".9"/>'),
     "weather-clear-day": lambda: weather(sun(32, 32, 13, 19, 27, 5)),
     "weather-clear-night": lambda: weather(moon(30, 32, 22) + flakes((48, 16), (54, 30))),
     "weather-partly-day": lambda: weather(SMALL_SUN + cloud(6, 10, 0.85)),
