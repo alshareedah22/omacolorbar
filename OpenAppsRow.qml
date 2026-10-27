@@ -215,6 +215,8 @@ Item {
       onExited: if (row.bar) row.bar.hideTooltip(appIcon)
       onClicked: function(mouse) {
         if (mouse.button === Qt.RightButton) {
+          // A second right-click on the same icon closes its menu.
+          if (row.menuOpen && menuCard.anchorTarget === appIcon) { row.menuOpen = false; return }
           row.menuGroup = appIcon.group
           menuCard.anchorTarget = appIcon
           row.moreOpen = false
@@ -270,6 +272,7 @@ Item {
           onExited: if (row.bar) row.bar.hideTooltip(more)
           onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) {
+              if (row.menuOpen && menuCard.anchorTarget === more) { row.menuOpen = false; return }
               row.menuGroup = null
               menuCard.anchorTarget = more
               row.moreOpen = false
