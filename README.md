@@ -8,7 +8,7 @@ Color gradient icons for the built-in widgets in the Omarchy bar. Each icon host
 
 Every copy of the widget wraps one built-in widget and only replaces its icon with a color one. The popup, click and scroll actions and tooltip come from the original, unchanged; its settings are read from `plugins[]`. The icon follows the widget's state (connected, muted, offline, ...).
 
-Phase 1 icons:
+Icons:
 
 - `omarchy.menu` (Omarchy logo in green, or the Arch Linux logo in blue)
 - `omarchy.network` (Wi-Fi, ethernet, offline)
@@ -20,6 +20,9 @@ Phase 1 icons:
 - `omarchy.system-update`
 - `omarchy.agents`
 - `omarchy.tailscale` (on, off, login needed)
+- `omarchy.tray` (each tray app shows its own installed app icon, for example Claude and ChatGPT; apps without one keep their tray image)
+- `omarchy.indicators` (stay awake, do not disturb, night light, screen recording, dictation, reminder: color when on, gray when off)
+- `omarchy.weather` (a color drawing for each condition)
 
 ## Install
 
@@ -34,11 +37,28 @@ Do not use `--enable` on `plugin add`: it puts a bare `blackcode.omacolorbar` en
 
 `colorbar swap` and `colorbar restore` take an optional path to a `shell.json` (default `~/.config/omarchy/shell.json`), for example `colorbar swap ~/test/shell.json`. `swap` changes nothing, and writes no backup, when the layout has no supported built-in.
 
+## Updating from 1.0.0
+
+```bash
+~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap --force
+omarchy restart shell
+```
+
+This also swaps the tray, indicators and weather. `--force` keeps your original backup.
+
+## Tray icons
+
+A tray app gets its color icon by matching it to an installed app. The match tries the window class first, then the app's desktop file name, then the app name (compared with the tray item's title or tooltip). Generic Electron tray ids such as `chrome_status_icon_1` only match by title. The icon comes from the app's `.desktop` file (`Icon=`) through the icon theme. If nothing matches, or the icon fails to load, the tray keeps its own image.
+
+Indicators show in color when on and in gray when off. The gray ones appear only when Omarchy shows inactive indicators, for example on hover or with `alwaysShow`.
+
+Omarchy's bar weather shows only the condition icon (no temperature), so the drawing replaces that icon.
+
 ## Settings
 
 | Setting     | Values                                          | Default           |
 |-------------|-------------------------------------------------|-------------------|
-| Icon        | any built-in listed above                       | `omarchy.network` |
+| Icon        | any widget listed above                         | `omarchy.network` |
 | Menu logo   | `Omarchy`, `Arch` (for the `omarchy.menu` copy) | `Omarchy`         |
 
 The built-in widget's own settings (for example `showPercentage` on power) live in its entry in `plugins[]` of `shell.json`. The copy reads them from there, so they apply when you edit `plugins[]` or use Omarchy's settings UI. A hosted widget cannot save them itself (see Known limits).
@@ -78,6 +98,7 @@ If the backup is gone, replace each `{"id": "blackcode.omacolorbar", "icon": "<i
 - The shell lets a plugin summon only widgets it owns, so hosted copies cannot open other panels: scrolling over the color audio or monitor icon changes the value but shows no on-screen display, and the Wi-Fi QR and speed-test actions in the network popup do nothing. Verified live for audio (scroll over the color icon changed the volume, no on-screen display appeared); the network and monitor cases are read from the shell source (`shell.qml`, `_summon`).
 - Bluetooth's cross-monitor scan hand-off (`bar.moduleWidgets`) is unavailable to hosted copies.
 - Popup shortcuts: `qs -p /usr/share/omarchy/shell ipc call omarchy.audio toggle` opens the popup of the color copy. `omarchy-shell shell toggle omarchy.audio` did not open it on the tested Omarchy version. Clicking the icon always works.
+- Pin and Hide in the tray's manage panel ("Tray icons") have no effect when OmaColorBar hosts the tray, not even for the session. The tray saves them through a shell call that only works for Omarchy's own tray entry. To pin or hide an app, set `pinned` or `hidden` (lists of tray item ids, for example `"Claude_status_icon_1"`) in the `omarchy.tray` entry of `plugins[]` in `~/.config/omarchy/shell.json`, then run `omarchy restart shell`. Or keep the tray on Omarchy's own widget.
 - Power settings (right-click to show the percentage) were not tested here: the test machine has no battery.
 - Duplicate check (verified): with `omarchy.audio` added to the bar next to its color copy, the copy's tooltip shows the warning above.
 - `omarchy.system-update` and `omarchy.power` can be hidden by Omarchy itself (no update pending, no battery). Their copies stay hidden too.

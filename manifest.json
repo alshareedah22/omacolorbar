@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "blackcode.omacolorbar",
   "name": "OmaColorBar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "BlackCode",
   "license": "MIT",
-  "description": "OmaColorBar: color gradient icons for Omarchy's built-in bar widgets. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
+  "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, indicators and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
   "kinds": [
     "service",
     "bar-widget"

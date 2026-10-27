@@ -20,3 +20,7 @@ test("settings schema has icon and menuLogo with their defaults", () => {
   assert.deepStrictEqual(byKey.menuLogo.options, ["Omarchy", "Arch"])
   assert.strictEqual(manifest.barWidget.defaults.menuLogo, "Omarchy")
 })
+
+test("version 1.1.0", () => {
+  assert.strictEqual(manifest.version, "1.1.0")
+})
