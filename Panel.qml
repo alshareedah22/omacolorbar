@@ -26,8 +26,7 @@ Item {
   readonly property string menuLogo: String(setting("menuLogo", "Omarchy"))
   readonly property bool supported: Icons.SUPPORTED.indexOf(hostId) !== -1
   // How the hosted widget's icons are swapped (see the spec's adapter table).
-  readonly property string adapter: hostId === "omarchy.indicators" ? "indicator"
-    : hostId === "omarchy.tray" ? "tray" : "button"
+  readonly property string adapter: hostId === "omarchy.tray" ? "tray" : "button"
 
   // The registry reaches a plugin only through its own service (Service.qml).
   property var registry: null
@@ -48,10 +47,6 @@ Item {
   property var originalIcon: null
   property int attachTries: 0
   property string tailscaleState: ""
-  // Indicator buttons already given a color icon. The indicators widget builds and
-  // rebuilds them (active and inactive blocks, orientation), so they are re-scanned.
-  property var adapted: []
-
   readonly property var drawing: supported
     ? Icons.drawingFor(hostId, button ? String(button.text) : "", { menuLogo: menuLogo, tailscale: tailscaleState })
     : null
@@ -109,30 +104,6 @@ Item {
     return null
   }
 
-  // Every BarIndicator inside the hosted indicators widget.
-  function findIndicators(item, depth, out) {
-    if (!item || depth > 14) return out
-    if ("activeText" in item && "effectiveActive" in item && "iconComponent" in item) out.push(item)
-    var kids = item.children || []
-    for (var i = 0; i < kids.length; i++) findIndicators(kids[i], depth + 1, out)
-    return out
-  }
-
-  function indicatorIconFor(item) {
-    return function() { return Icons.indicatorDrawing(String(item.text), item.effectiveActive) ? indicatorIcon : null }
-  }
-
-  function scanIndicators() {
-    var live = adapted.filter(function(item) { return item })
-    var found = findIndicators(loader.item, 0, [])
-    for (var i = 0; i < found.length; i++) {
-      if (live.indexOf(found[i]) !== -1) continue
-      found[i].iconComponent = Qt.binding(indicatorIconFor(found[i]))
-      live.push(found[i])
-    }
-    adapted = live
-  }
-
   function attach() {
     var found = findButton(loader.item, 0)
     if (!found) {
@@ -187,18 +158,6 @@ Item {
     onTriggered: root.attach()
   }
 
-  Timer {
-    interval: 1000
-    repeat: true
-    running: root.adapter === "indicator" && loader.item !== null
-    onTriggered: root.scanIndicators()
-  }
-
-  TrayAdapter {
-    host: loader.item
-    enabled: root.adapter === "tray"
-  }
-
   FileView {
     id: shellView
     path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
@@ -215,29 +174,6 @@ Item {
       width: Style.bar.iconCanvas
       height: Style.bar.iconCanvas
       source: root.drawingSource
-      sourceSize.width: width * 2
-      sourceSize.height: height * 2
-      fillMode: Image.PreserveAspectFit
-      smooth: true
-    }
-  }
-
-  // An indicator's icon: picks its drawing from the BarIndicator it sits in
-  // (Image -> Loader -> optical canvas -> the button).
-  Component {
-    id: indicatorIcon
-    Image {
-      id: indicatorImage
-      property var button: null
-      readonly property var drawing: button ? Icons.indicatorDrawing(String(button.text), button.effectiveActive) : null
-      // The Loader may set the parent after completion, so look on both.
-      function findButton() {
-        for (var p = parent, i = 0; p && i < 6; p = p.parent, i++)
-          if ("effectiveActive" in p && "activeText" in p) { button = p; return }
-      }
-      Component.onCompleted: findButton()
-      onParentChanged: findButton()
-      source: drawing ? Qt.resolvedUrl("icons/" + drawing.name + ".svg") : ""
       sourceSize.width: width * 2
       sourceSize.height: height * 2
       fillMode: Image.PreserveAspectFit
@@ -315,13 +251,11 @@ Item {
         root.button = null
         root.originalIcon = null
         root.tailscaleState = ""
-        root.adapted = []
         root.inject(item)
         // Again on the next frame, as the bar does: some widgets read these while building.
         Qt.callLater(function() {
           root.inject(loader.item)
           if (root.adapter === "button") root.attach()
-          else if (root.adapter === "indicator") root.scanIndicators()
         })
       }
     }

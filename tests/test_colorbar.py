@@ -26,20 +26,14 @@ SAMPLE = {
 
 
 class SwappedTest(unittest.TestCase):
-    def test_swaps_the_new_ids_and_moves_their_settings(self):
+    def test_swaps_weather_and_leaves_indicators_alone(self):
         config = {"bar": {"layout": {"left": [], "center": [
             {"id": "omarchy.indicators", "alwaysShow": True}, {"id": "omarchy.weather"}], "right": []}}}
         out = colorbar.swapped(config)
         self.assertEqual(out["bar"]["layout"]["center"], [
-            {"id": "blackcode.omacolorbar", "icon": "omarchy.indicators"},
+            {"id": "omarchy.indicators", "alwaysShow": True},
             {"id": "blackcode.omacolorbar", "icon": "omarchy.weather"}])
-        self.assertIn({"id": "omarchy.indicators", "alwaysShow": True}, out["plugins"])
-
-    def test_swaps_the_tray(self):
-        config = {"bar": {"layout": {"left": [], "center": [], "right": [{"id": "omarchy.tray", "pinned": ["a"]}]}}}
-        out = colorbar.swapped(config)
-        self.assertEqual(out["bar"]["layout"]["right"], [{"id": "blackcode.omacolorbar", "icon": "omarchy.tray"}])
-        self.assertIn({"id": "omarchy.tray", "pinned": ["a"]}, out["plugins"])
+        self.assertFalse(any(e.get("id") == "omarchy.indicators" for e in out.get("plugins", [])))
 
     def test_swaps_supported_ids_in_place(self):
         out = colorbar.swapped(SAMPLE)

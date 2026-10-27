@@ -21,7 +21,6 @@ Icons:
 - `omarchy.agents`
 - `omarchy.tailscale` (on, off, login needed)
 - `omarchy.tray` (each tray app shows its own installed app icon, for example Claude and ChatGPT; apps without one keep their tray image)
-- `omarchy.indicators` (stay awake, do not disturb, night light, screen recording, dictation, reminder: color when on, gray when off)
 - `omarchy.weather` (a color drawing for each condition)
 
 ## Install
@@ -44,13 +43,11 @@ Do not use `--enable` on `plugin add`: it puts a bare `blackcode.omacolorbar` en
 omarchy restart shell
 ```
 
-This also swaps the tray, indicators and weather. `--force` keeps your original backup.
+This also swaps the tray and weather. `--force` keeps your original backup.
 
 ## Tray icons
 
 A tray app gets its color icon by matching it to an installed app. The match tries the window class first, then the app's desktop file name, then the app name (compared with the tray item's title or tooltip). Generic Electron tray ids such as `chrome_status_icon_1` only match by title. The icon comes from the app's `.desktop` file (`Icon=`) through the icon theme. If nothing matches, or the icon fails to load, the tray keeps its own image.
-
-Indicators show in color when on and in gray when off. The gray ones appear only when Omarchy shows inactive indicators, for example on hover or with `alwaysShow`.
 
 Omarchy's bar weather shows only the condition icon (no temperature), so the drawing replaces that icon.
 
@@ -101,6 +98,7 @@ If the backup is gone, replace each `{"id": "blackcode.omacolorbar", "icon": "<i
 - Pin and Hide in the tray's manage panel ("Tray icons") have no effect when OmaColorBar hosts the tray, not even for the session. The tray saves them through a shell call that only works for Omarchy's own tray entry. To pin or hide an app, set `pinned` or `hidden` (lists of tray item ids, for example `"Claude_status_icon_1"`) in the `omarchy.tray` entry of `plugins[]` in `~/.config/omarchy/shell.json`, then run `omarchy restart shell`. Or keep the tray on Omarchy's own widget.
 - Power settings (right-click to show the percentage) were not tested here: the test machine has no battery.
 - Duplicate check (verified): with `omarchy.audio` added to the bar next to its color copy, the copy's tooltip shows the warning above.
+- Indicators are not included: when another plugin hosts Omarchy's indicators, Stay awake, Night light and Do not disturb cannot read their state, so they would stay off. Keep `omarchy.indicators` as Omarchy's own widget.
 - `omarchy.system-update` and `omarchy.power` can be hidden by Omarchy itself (no update pending, no battery). Their copies stay hidden too.
 
 ## Tests

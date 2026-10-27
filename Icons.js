@@ -8,8 +8,7 @@ var PLUGIN_ID = "blackcode.omacolorbar"
 
 var SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.audio",
   "omarchy.microphone", "omarchy.power", "omarchy.monitor", "omarchy.system-update",
-  "omarchy.agents", "omarchy.tailscale", "omarchy.tray",
-  "omarchy.indicators", "omarchy.weather"]
+  "omarchy.agents", "omarchy.tailscale", "omarchy.tray", "omarchy.weather"]
 
 function svg(name) { return { kind: "svg", name: name } }
 function level(shape, n) { return { kind: "level", shape: shape, level: n } }
@@ -48,6 +47,7 @@ var BATTERY_FULL = "f0085"
 
 var TAILSCALE_STATES = ["on", "off", "login"]
 
+// These drawings are not used by 1.1.0 (hosted indicators cannot reach Omarchy's idle, night light and notification services); kept for a later indicators plugin.
 // Indicator glyph -> drawing (bar/indicators/*.qml activeText / inactiveText). Dictation
 // shows f036c while recording and when off, f051f while transcribing.
 var INDICATORS = {

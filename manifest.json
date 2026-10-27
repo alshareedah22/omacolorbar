@@ -5,7 +5,7 @@
   "version": "1.1.0",
   "author": "BlackCode",
   "license": "MIT",
-  "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, indicators and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
+  "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
   "kinds": [
     "service",
     "bar-widget"
@@ -41,7 +41,6 @@
           "omarchy.agents",
           "omarchy.tailscale",
           "omarchy.tray",
-          "omarchy.indicators",
           "omarchy.weather"
         ],
         "defaultValue": "omarchy.network",
