@@ -202,3 +202,32 @@ Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/St
 
 Version 1.2.0; README (open apps, settings table incl. `menuLogo`, hide/show, limits) and
 poster updated. Push and the marketplace step need the user's yes.
+
+## Change 2026-10-27: open apps live in the tray drawer (user decision)
+
+User request after seeing the row live: "all apps open will be placed inside the tray, not out".
+The user chose: open apps hide behind the tray's `<` together with the tray's drawer apps (e.g.
+Claude), slide out when the tray is hovered, and hide again. This replaces "drawn right after
+the hosted tray, always visible" for horizontal bars.
+
+- Layout of the tray copy (horizontal bar), left to right: open-apps drawer area, then the
+  hosted Omarchy tray (its own drawer, `<`, pinned items). Expanded it reads
+  `[open apps][+N][tray drawer apps][<][pinned]`.
+- Collapsed, the open-apps area is empty space, like the tray's own collapsed drawer
+  (Omarchy reserves the drawer width and masks it). Nothing in it takes clicks or hover.
+- Reveal follows the hosted tray's `revealProgress` (same 600 ms OutCubic animation), so open
+  apps and tray apps slide out together. The icons slide out from under the tray side and are
+  clipped to the open-apps area.
+- Staying open: while the tray is expanded, hovering the open apps, `+N`, or any open card of
+  the row (hide menu, `+N` list) or the settings card keeps the tray expanded. Leaving the whole
+  tray copy collapses it, as Omarchy's tray does.
+- No tray drawer (no tray apps, or all of them pinned): OmaColorBar shows its own `<` (same
+  glyph and size as Omarchy's) for the open apps, with the same hover and animation.
+- Limit, `+N`, counts, click/cycle, right-click hide, settings and the settings card are
+  unchanged; they now live inside the drawer.
+- Middle-click on the tray copy: over the hosted tray it goes to the tray (SNI), over the
+  open-apps area it opens the settings card; Shift+middle anywhere opens the card.
+- Vertical bars: open apps stay always visible below the tray (unchanged). Ruling: Omarchy's
+  vertical drawer slides on y with a rotated chevron; the user's bar is horizontal, so this
+  release keeps the vertical layout as built. Cost if wrong: vertical-bar users see open apps
+  outside the drawer.
