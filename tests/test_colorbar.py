@@ -26,6 +26,15 @@ SAMPLE = {
 
 
 class SwappedTest(unittest.TestCase):
+    def test_swaps_the_new_ids_and_moves_their_settings(self):
+        config = {"bar": {"layout": {"left": [], "center": [
+            {"id": "omarchy.indicators", "alwaysShow": True}, {"id": "omarchy.weather"}], "right": []}}}
+        out = colorbar.swapped(config)
+        self.assertEqual(out["bar"]["layout"]["center"], [
+            {"id": "blackcode.omacolorbar", "icon": "omarchy.indicators"},
+            {"id": "blackcode.omacolorbar", "icon": "omarchy.weather"}])
+        self.assertIn({"id": "omarchy.indicators", "alwaysShow": True}, out["plugins"])
+
     def test_swaps_supported_ids_in_place(self):
         out = colorbar.swapped(SAMPLE)
         self.assertEqual(out["bar"]["layout"]["left"][0], {"id": "blackcode.omacolorbar", "icon": "omarchy.menu"})

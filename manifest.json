@@ -39,7 +39,9 @@
           "omarchy.monitor",
           "omarchy.system-update",
           "omarchy.agents",
-          "omarchy.tailscale"
+          "omarchy.tailscale",
+          "omarchy.indicators",
+          "omarchy.weather"
         ],
         "defaultValue": "omarchy.network",
         "description": "Which built-in widget this copy shows. Its popup and clicks stay Omarchy's own."
