@@ -59,6 +59,7 @@ Omarchy's bar weather shows only the condition icon (no temperature), so the dra
 
 The `omarchy.tray` copy shows one color icon for each open app, inside the tray drawer. Collapsed, the tray shows only its `<` and pinned apps. Hover the `<` and the drawer opens: from left to right you see the `<`, the open apps (and `+N`), then the tray apps (for example Claude), then the pinned apps. Move away and they hide again. The drawer stays open while the pointer is on the open apps or one of their menus is open. OmaColorBar draws this one `<` for the whole group (right-click it for Omarchy's tray icons panel), also when no app has a tray icon. On a vertical bar the open apps stay visible below the tray.
 
+- Icon sizes: tray app icons are drawn at the bar's icon size (Omarchy's tray draws them smaller). Open app icons are 85% of that size, so they match the visible logo of tray icons that keep a transparent margin. Each takes the same slot width as a tray item.
 - One icon per app. At 2 or more windows of the same app, the icon has a count badge.
 - Click focuses the app's latest window. Click again to cycle through its windows.
 - Apps beyond `openAppsLimit` (default 6) go behind `+N`. Click `+N` for a list and click an app in it to focus it.
@@ -77,7 +78,7 @@ Hides made with a right-click are stored in the Quickshell state folder, in `~/.
 Middle-click any color icon to open its settings card. Exceptions:
 
 - Microphone and agents copies: plain middle-click keeps the widget's own action. Shift+middle-click opens the card.
-- Tray copy: plain middle-click over the tray apps goes to the tray app, as in Omarchy. Middle-click over the `<` or the open apps opens the card. Shift+middle-click opens it anywhere.
+- Tray copy: plain middle-click over the tray apps goes to the tray app, as in Omarchy. Middle-click over the `<` or the open apps opens the card. Shift+middle-click opens it anywhere. With open apps off, or no app open, there is no `<` of ours, so use Shift+middle-click.
 
 Rows on the card:
 
@@ -101,7 +102,7 @@ Changes save at once, into that copy's own entry in `~/.config/omarchy/shell.jso
 
 Menu logo: set `"menuLogo": "Arch"` or `"Omarchy"` on the copy set to `omarchy.menu`, or use the settings card.
 
-Display scale: every icon follows the theme's sizes and the monitor scale. Images render at the screen's pixel density, so they stay sharp at scale 1, 1.5 and 2.
+Display scale: icon sizes and slot widths come from Omarchy's bar tokens, so they follow the theme and the monitor scale. Images render at the screen's pixel density (at least 2x), so they stay sharp at scale 1, 1.5 and 2.
 
 The built-in widget's own settings (for example `showPercentage` on power) live in its entry in `plugins[]` of `shell.json`. The copy reads them from there, so they apply when you edit `plugins[]` or use Omarchy's settings UI. The plugin's own settings above live on each copy's entry. A hosted widget cannot save them itself (see Known limits).
 
