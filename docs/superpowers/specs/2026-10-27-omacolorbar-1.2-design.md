@@ -9,7 +9,8 @@ there still holds unless this document says otherwise.
 The OmaColorBar tray copy (`icon: "omarchy.tray"`) also shows every open app, each with its
 own color app icon, next to Omarchy's hosted tray, so tray apps and open apps read as one
 group. A setting limits how many open-app icons show; the rest go into a `+N` button. Apps
-can be hidden and shown again from a right-click menu.
+can be hidden and shown again from a right-click menu. Every OmaColorBar copy gets a settings
+card on middle-click, so its settings can be changed from the bar instead of `shell.json`.
 
 ## Decisions (user)
 
@@ -23,6 +24,7 @@ can be hidden and shown again from a right-click menu.
 | Hide/show | Right-click an icon → "Hide from bar"; a "Hidden apps" submenu unhides |
 | Duplicates | An app already shown by the tray (e.g. Claude) is not shown again |
 | Logo choice | Already exists: `"menuLogo": "Arch"` / `"Omarchy"` on the OmaColorBar menu copy's own layout entry (`{"id": "blackcode.omacolorbar", "icon": "omarchy.menu", "menuLogo": "Arch"}`, already in the manifest schema); README documents it, nothing new is built |
+| Settings from the bar | Middle-click any OmaColorBar copy → its settings card (user, 2026-10-27); details in Settings card |
 | Window source | Quickshell `ToplevelManager.toplevels` (Wayland foreign-toplevel: `appId`, `title`, `activated`, `activate()`); no Hyprland dispatch |
 
 ## Constraints
@@ -55,6 +57,8 @@ The hosted tray's own settings stay in `plugins[]` (`omarchy.tray`), as in 1.1.0
 | `OpenApps.js` | new, pure, Node-tested | `appKey(toplevel, apps)`, `group(toplevels, apps, opts)` → ordered app groups, `split(groups, limit)` → `{shown, overflow}`, `nextWindow(group, current)` |
 | `OpenAppsRow.qml` | new | the row: icons, badges, `+N` button and popup, right-click menu, tooltips |
 | `Panel.qml` | modify | for `adapter === "tray"`, lay out hosted tray + `OpenAppsRow` side by side; pass settings |
+| `SettingsCard.qml` | new | middle-click card: rows per copy, writes via `ShellEntry.js` |
+| `ShellEntry.js` | new, pure, Node-tested | `findEntry(config, icon)` → `{section, index}` or an error (`none`/`many`), `withEntryKeys(config, section, index, changes)` → new config, `usedIcons(config)` |
 | `TrayAdapter.qml` | modify (small) | expose the app keys the tray currently shows (for the duplicate rule) |
 | `manifest.json` | modify | schema/defaults for the four settings, version 1.2.0 |
 | `Apps.js` | reuse | app lookup for a window (`appId` → desktop entry via wmClass / desktop id / name) |
@@ -89,6 +93,57 @@ The hosted tray's own settings stay in `plugins[]` (`omarchy.tray`), as in 1.1.0
 - The plan's first task checks live that the state file can be written and read back after
   `omarchy restart shell`; if it cannot, the controller stops and asks the user.
 
+## Settings card (middle-click)
+
+User request 2026-10-27: change OmaColorBar settings from the top bar, not only in
+`shell.json`. Omarchy keeps each plugin's `barWidget.schema` (`shell.qml`) but has no screen
+that shows it, so OmaColorBar draws its own card.
+
+**Opening it**
+- Middle-click any OmaColorBar copy opens a `PopupCard` (`qs.Ui`) anchored to that copy.
+  Outside click or Escape closes it.
+- A `MouseArea` over the copy accepts only `Qt.MiddleButton`, so left/right clicks, scroll,
+  hover and tooltips still reach the hosted Omarchy widget.
+- Two hosted widgets use middle-click themselves: `omarchy.microphone` (opens the audio panel)
+  and `omarchy.agents` (next provider). On those two copies plain middle-click passes through
+  to the widget and **Shift+middle-click** opens the card. Shift+middle-click works on every
+  copy.
+  Ruling: this keeps Omarchy's own actions working. If it is wrong, both copies lose their
+  middle-click action instead.
+
+**Contents** (only the rows that apply to this copy)
+
+| Row | Shown on | Control | Writes |
+|---|---|---|---|
+| Widget | every copy | list of the 12 supported widgets; ones already on the bar as another OmaColorBar copy are disabled | `icon` |
+| Menu logo | `omarchy.menu` copy | Omarchy / Arch | `menuLogo` |
+| Open apps | tray copy | on/off | `openApps` |
+| Apps shown | tray copy | − / value / + (1–20) | `openAppsLimit` |
+| Show terminals | tray copy | on/off | `showTerminals` |
+| Hidden apps | tray copy | one row per hidden app with "Show"; `hiddenApps` entries read "set in shell.json" and have no button | state file (see Hide and show) |
+| Open shell.json | every copy | button: opens the file in the user's editor (`omarchy-launch-editor`) and closes the card | nothing |
+
+**Saving** (the copy writes `shell.json` itself; `updateEntryInline` is never used, see
+Hide and show)
+- A change applies right away, with no Save button. The card re-reads `shell.json` from disk
+  before each write.
+- It finds its own layout entry: `id == "blackcode.omacolorbar"` with the same `icon` as this
+  copy, in `bar.layout.left/center/right`.
+  - No match, or more than one match: nothing is written. The card shows "Edit shell.json:
+    this copy can't be found uniquely" next to the Open shell.json button.
+- Only that entry's keys change. Every other entry, key and the file's key order stay as they
+  were. The file is written as 2-space indented JSON, the format Omarchy writes.
+- Before each write the current file is copied to `~/.config/omarchy/shell.json.omacolorbar-settings-backup`
+  (one rolling copy). This is separate from the `colorbar swap` backup, which is never
+  touched.
+- The write is atomic (temp file + rename, `FileView.atomicWrites`), so the shell never reads
+  a half-written file.
+- The shell's own `shell.json` watch applies the change. A new `icon` reloads the copy as a
+  different widget, and the card closes because its copy is rebuilt.
+- The plan's spike checks live that a write reaches the bar without `omarchy restart shell`.
+  If it does not, the card says "Restart the shell to apply" after a write (no automatic
+  restart).
+
 ## Display scale (user requirement: every icon, every feature, any scale)
 
 Two scales apply and both must work: the monitor scale (Hyprland, e.g. 1, 1.25, 1.5, 2) and
@@ -97,15 +152,15 @@ Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/St
 - Every size in OmaColorBar QML comes from Omarchy's `Style` tokens (`Style.bar.iconCanvas`,
   `Style.bar.statusSlot`, `Style.space(n)`, `Style.bar.iconFont`, font tokens); no hard-coded
   pixel widths, heights, margins or font sizes. This covers the 1.0/1.1 icons, weather, the
-  tray app icons, the open-app icons, count badges, the `+N` button, its popup and the
-  right-click menu.
+  tray app icons, the open-app icons, count badges, the `+N` button, its popup, the
+  right-click menu and the settings card.
 - Every `Image` renders at the screen's pixel density: `sourceSize` = displayed size ×
   `max(2, devicePixelRatio)` of the screen it is on, so drawings and app icons are sharp at
   fractional and 2× scales (1.1.0 used a fixed ×2; this replaces it everywhere).
 - Text and badges stay inside their slot at every scale (no clipping, no overlap with the
   next icon); the row's implicit size follows the tokens so the bar lays it out like
   Omarchy's own widgets.
-- Tests: a Node test scans `Panel.qml`, `TrayAdapter.qml` and `OpenAppsRow.qml` and fails on
+- Tests: a Node test scans `Panel.qml`, `TrayAdapter.qml`, `OpenAppsRow.qml` and `SettingsCard.qml` and fails on
   numeric literals for `width`/`height`/`implicitWidth`/`implicitHeight`/`pixelSize`/
   `spacing`/margins (0 allowed) and on `sourceSize` without `devicePixelRatio`. Live: the
   controller checks the whole bar (every OmaColorBar icon, weather, tray, open apps, badge,
@@ -121,6 +176,8 @@ Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/St
 | Matched icon empty or fails to load | neutral app glyph |
 | Window closes while its menu or the `+N` list is open | menu/list closes or drops that entry |
 | `ToplevelManager` unavailable | open-apps row empty; tray as in 1.1.0 |
+| `shell.json` invalid JSON when the card writes | nothing written; card shows "shell.json can't be read" |
+| Write fails | the backup is kept, the card shows the error, and the setting reverts to the file's value |
 | State file unreadable or invalid JSON | treated as an empty list; a warning is logged once |
 
 ## Testing
@@ -128,11 +185,18 @@ Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/St
 - Node (`tests/openapps.test.js`): grouping by app, first-seen order, terminal/hidden/tray
   exclusion, `showTerminals`, `split` at the limit (0 overflow, exact limit, over), `nextWindow`
   cycling, windows without a match skipped, no `Array.from`/`codePointAt`.
+- Node (`tests/shellentry.test.js`): `findEntry` by icon across sections, none/many errors,
+  `withEntryKeys` changes only that entry (other entries, keys and order deep-equal),
+  `usedIcons`.
 - Python: `colorbar` unchanged; existing tests pass.
 - Live: Chrome with 2 windows → one icon, badge 2, click cycles; Ghostty not shown; Claude
   shown once (tray); limit 2 with 4 apps → `+2` and its list focuses apps; hide → gone,
   unhide → back, survives restart (if the spike allows); `openApps: false` → 1.1.0 behavior;
-  no `[omacolorbar]` warnings.
+  no `[omacolorbar]` warnings. Settings card: middle-click opens it on each copy, and
+  left/right click still reach the widget. On the microphone and agents copies, middle-click
+  keeps their own action and Shift+middle opens the card. Menu logo Arch→Omarchy, openAppsLimit
+  and openApps change the bar live and survive restart. A `shell.json` diff shows only the
+  edited entry, and the backup file exists. Changing the widget of one copy rebuilds it.
 
 ## Release
 
