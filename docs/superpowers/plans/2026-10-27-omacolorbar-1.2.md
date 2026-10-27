@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The OmaColorBar tray copy also shows every open app (one color icon per app, count badge, click focuses/cycles, `+N` overflow list, right-click hide/unhide), and every OmaColorBar icon renders at the right size and sharpness at any monitor and theme scale.
+**Goal:** The OmaColorBar tray copy also shows every open app (one color icon per app, count badge, click focuses/cycles, `+N` overflow list, right-click hide/unhide), every OmaColorBar icon renders at the right size and sharpness at any monitor and theme scale, and middle-click on any copy opens a settings card that saves into that copy's own `shell.json` entry.
 
-**Architecture:** Window data comes from Quickshell's `ToplevelManager.toplevels` (Wayland foreign-toplevel). `Apps.appForWindow` maps a window's `appId` to its desktop entry; the pure `OpenApps.js` groups windows into ordered app groups, applies exclusions, splits at the limit and picks the window a click focuses. `OpenAppsRow.qml` draws the row next to the hosted tray inside `Panel.qml`; `HiddenStore.qml` keeps right-click hides in a Quickshell state file. All sizes come from Omarchy `Style` tokens; every `Image` uses `sourceSize = size × max(2, Screen.devicePixelRatio)`.
+**Architecture:** Window data comes from Quickshell's `ToplevelManager.toplevels` (Wayland foreign-toplevel). `Apps.appForWindow` maps a window's `appId` to its desktop entry; the pure `OpenApps.js` groups windows into ordered app groups, applies exclusions, splits at the limit and picks the window a click focuses. `OpenAppsRow.qml` draws the row next to the hosted tray inside `Panel.qml`; `HiddenStore.qml` keeps right-click hides in a Quickshell state file. `SettingsCard.qml` (middle-click) edits one copy's entry through the pure `ShellEntry.js`, with a rolling backup and atomic writes. All sizes come from Omarchy `Style` tokens; every `Image` uses `sourceSize = size × max(2, Screen.devicePixelRatio)`.
 
 **Tech Stack:** QML (Quickshell 0.3.x: `Quickshell.Wayland` `ToplevelManager`, `DesktopEntries`, `Quickshell.iconPath`, `Quickshell.statePath`, `Quickshell.Io` `FileView`; Omarchy `qs.Commons` `Style`/`Color`, `qs.Ui` `PopupCard`), JavaScript (`.pragma library`, `node --test`), Python 3 stdlib (`unittest`).
 
@@ -12,7 +12,7 @@
 
 **Scratch folder:** `export SCRATCH=/tmp/claude-1000/-home-blackcode-desktop/e4b4a5c1-17c8-4668-b6e7-8f0ea7793e33/scratchpad`
 
-**Repo:** `~/.config/omarchy/plugins/blackcode.omacolorbar` (live plugin folder), branch `v1.2` (already created, holds the spec). Merge to `main` locally in Task 7; never push without the user's yes.
+**Repo:** `~/.config/omarchy/plugins/blackcode.omacolorbar` (live plugin folder), branch `v1.2` (already created, holds the spec). Merge to `main` locally in Task 9; never push without the user's yes.
 
 ## Global Constraints
 
@@ -27,7 +27,9 @@
 - Terminal = desktop entry `categories` contains `"TerminalEmulator"`.
 - Commits: `git -c user.name=BlackCode -c user.email=aalsheraidah@gmail.com commit`, message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Tests: `cd ~/.config/omarchy/plugins/blackcode.omacolorbar && node --test tests/ && python3 -I -m unittest discover -s tests -p "test_*.py"`.
-- Live work (Tasks 1 and 7, controller only): back up `~/.config/omarchy/shell.json` and restore it unless told to keep; after QML changes `omarchy restart shell` and wait ~10 s (run waits with `run_in_background`); before any click the cursor must be still for 5 s, restore it afterwards (`$SCRATCH/click X Y [right]`; monitors DP-3 x 0–1919, DP-2 x 1920–3839); monitor scale changes are temporary and restored to `1`.
+- Live work (Tasks 1 and 9, controller only): back up `~/.config/omarchy/shell.json` and restore it unless told to keep; after QML changes `omarchy restart shell` and wait ~10 s (run waits with `run_in_background`); before any click the cursor must be still for 5 s, restore it afterwards (`$SCRATCH/click X Y [right]`; monitors DP-3 x 0–1919, DP-2 x 1920–3839); monitor scale changes are temporary and restored to `1`.
+- `shell.json` is written only by `SettingsCard.qml`: through `ShellEntry.findEntry`/`withEntryKeys`/`serialize`; the current file is first copied to `~/.config/omarchy/shell.json.omacolorbar-settings-backup`; writes are atomic. The `colorbar swap` backup (`shell.json.omacolorbar-backup`) is never touched by QML.
+- Settings card: opened by middle-click on any copy; on `omarchy.microphone` and `omarchy.agents` copies by Shift+middle-click only (plain middle-click passes through to the widget). The click area accepts only `Qt.MiddleButton`.
 - Push and marketplace steps need the user's explicit yes.
 
 ## Rulings made while planning
@@ -37,6 +39,8 @@
 3. **Vertical bars:** the row flows top-to-bottom when `bar.vertical` (a `Grid` with one column), so it never breaks a side bar.
 4. **Duplicates:** `TrayAdapter` exposes `shownKeys` (desktop ids of the apps it gave an icon); the row skips those. `Apps.matchAppEntry` returns the matched app object so the adapter knows the id.
 5. **Order:** each app key gets a sequence number the first time the row sees it during the session; groups sort by it. On start, keys are numbered in `ToplevelManager.toplevels` order.
+6. **Card widget list hides used widgets** instead of greying them out: Omarchy's `Dropdown` has no disabled options. Same effect (each copy stays uniquely findable). Cost if wrong: the user can't see which widgets are taken.
+7. **Card saves immediately and re-reads the file before each write**; if the file is unreadable or the copy isn't unique, nothing is written and the card says why.
 
 ---
 
@@ -51,8 +55,10 @@
 | `TrayAdapter.qml` | modify | records `shownKeys` |
 | `Panel.qml` | modify | tray layout = hosted tray + row; DPI-aware `sourceSize` |
 | `icons/app.svg` | create (via `tools/make_icons.py`) | neutral app glyph |
+| `ShellEntry.js` | create | pure: `findEntry`, `usedIcons`, `withEntryKeys`, `serialize` |
+| `SettingsCard.qml` | create | middle-click card; writes this copy's entry |
 | `manifest.json` | modify | four settings, version 1.2.0, description |
-| `tests/apps.test.js`, `tests/openapps.test.js`, `tests/scale.test.js`, `tests/manifest.test.js` | modify/create | tests |
+| `tests/apps.test.js`, `tests/openapps.test.js`, `tests/scale.test.js`, `tests/manifest.test.js`, `tests/shellentry.test.js`, `tests/settingscard.test.js` | modify/create | tests |
 | `README.md`, `preview.png` | modify | docs, poster |
 
 ---
@@ -160,7 +166,8 @@ Wait ~10 s, then read `[spike-open]` lines from `$(ls -dt /run/user/1000/quicksh
 2. `categories` is a list and terminal apps contain `TerminalEmulator`.
 3. The state file is written on the first run and read back after a restart; record the real path.
 4. `Screen.devicePixelRatio` value (1 at scale 1). Then `hyprctl keyword monitor DP-2,1920x1080@60,1920x0,1.5` (use the monitor's real mode/position from `hyprctl monitors -j`), restart the shell, read the value again (expect 1.5), and restore the monitor's original line (`hyprctl reload` restores the config).
-5. The `activate is function` log line confirms `Toplevel.activate()` exists (focusing itself is checked live in Task 7).
+5. The `activate is function` log line confirms `Toplevel.activate()` exists (focusing itself is checked live in Task 9).
+6. Live apply of an outside `shell.json` write (what the settings card relies on): with the spike removed from the layout again, set `"menuLogo": "Arch"` on the `omarchy.menu` OmaColorBar entry with a Python `json.dump(..., indent=2)` write (backup taken in Step 2), wait 3 s **without** restarting, screenshot the DP-2 bar's left end and read it: the Arch logo shows → PASS. Then restore the backup and confirm the Omarchy logo returns without a restart. FAIL → ledger note; Task 8's card shows "Restart the shell to apply" after each write (add a `property bool needsRestart: true` and that message line).
 
 - [ ] **Step 4: Clean up**
 ```bash
@@ -171,7 +178,7 @@ rm -f "<state file path from check 3>"
 omarchy restart shell
 ```
 
-- [ ] **Step 5: Decide** — all of 1–4 PASS → continue. Check 3 FAIL → stop and ask the user (hides would be session-only). Check 1 shows app ids that match no desktop entry for common apps → write the real ids into the SDD ledger; Task 2's tests use them. Check 4 shows `devicePixelRatio` stays 1 at scale 1.5 → ledger note; Task 3 still uses `Math.max(2, …)` (2× is already sharp at 1.5).
+- [ ] **Step 5: Decide** — all of 1–4 PASS → continue. Check 3 FAIL → stop and ask the user (hides would be session-only). Check 1 shows app ids that match no desktop entry for common apps → write the real ids into the SDD ledger; Task 2's tests use them. Check 6 FAIL → not a stop; Task 8 adds the restart message. Check 4 shows `devicePixelRatio` stays 1 at scale 1.5 → ledger note; Task 3 still uses `Math.max(2, …)` (2× is already sharp at 1.5).
 
 ---
 
@@ -1067,7 +1074,475 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Release files, live check at every scale, poster, merge (controller runs the live parts)
+### Task 7: `ShellEntry.js` (pure: find this copy's entry, change only its keys)
+
+**Files:**
+- Create: `ShellEntry.js`
+- Test: `tests/shellentry.test.js`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces (used by Task 8): `ShellEntry.PLUGIN_ID`; `ShellEntry.findEntry(config, icon)` → `{section, index}` or `{error: "none"|"many"|"invalid"}`; `ShellEntry.usedIcons(config)` → `[string]`; `ShellEntry.withEntryKeys(config, section, index, changes)` → new config (input untouched; a `null` value removes the key); `ShellEntry.serialize(config)` → `JSON.stringify(config, null, 2) + "\n"` (the format `shell.qml` writes).
+
+- [ ] **Step 1: Failing tests** — `tests/shellentry.test.js`:
+
+```js
+const test = require("node:test")
+const assert = require("node:assert")
+const load = require("./load")
+const S = load("ShellEntry.js")
+
+function cfg() {
+  return {
+    version: 1,
+    bar: {
+      position: "top",
+      layout: {
+        left: [{ id: "blackcode.omacolorbar", icon: "omarchy.menu" }, { id: "omarchy.workspaces" }],
+        center: [{ id: "omarchy.clock" }],
+        right: [
+          { id: "blackcode.omacolorbar", icon: "omarchy.tray", openAppsLimit: 4 },
+          { id: "blackcode.omacolorbar" },
+          { id: "omarchy.tray" }
+        ]
+      }
+    },
+    plugins: [{ id: "omarchy.tray", hidden: ["x"] }]
+  }
+}
+
+test("findEntry finds the copy by icon in any section", () => {
+  assert.deepStrictEqual(S.findEntry(cfg(), "omarchy.menu"), { section: "left", index: 0 })
+  assert.deepStrictEqual(S.findEntry(cfg(), "omarchy.tray"), { section: "right", index: 0 })
+})
+
+test("an entry without icon is the default network copy", () => {
+  assert.deepStrictEqual(S.findEntry(cfg(), "omarchy.network"), { section: "right", index: 1 })
+})
+
+test("findEntry reports none and many", () => {
+  assert.deepStrictEqual(S.findEntry(cfg(), "omarchy.audio"), { error: "none" })
+  const c = cfg()
+  c.bar.layout.center.push({ id: "blackcode.omacolorbar", icon: "omarchy.menu" })
+  assert.deepStrictEqual(S.findEntry(c, "omarchy.menu"), { error: "many" })
+})
+
+test("findEntry on a config without a layout is invalid", () => {
+  assert.deepStrictEqual(S.findEntry(null, "omarchy.menu"), { error: "invalid" })
+  assert.deepStrictEqual(S.findEntry({ bar: {} }, "omarchy.menu"), { error: "invalid" })
+})
+
+test("usedIcons lists every OmaColorBar copy's icon", () => {
+  assert.deepStrictEqual(S.usedIcons(cfg()), ["omarchy.menu", "omarchy.tray", "omarchy.network"])
+  assert.deepStrictEqual(S.usedIcons({}), [])
+})
+
+test("withEntryKeys changes only that entry and leaves the input alone", () => {
+  const before = cfg()
+  const out = S.withEntryKeys(before, "right", 0, { openAppsLimit: 8, showTerminals: true })
+  assert.deepStrictEqual(before, cfg())
+  const expected = cfg()
+  expected.bar.layout.right[0] = { id: "blackcode.omacolorbar", icon: "omarchy.tray", openAppsLimit: 8, showTerminals: true }
+  assert.deepStrictEqual(out, expected)
+})
+
+test("withEntryKeys removes keys set to null and keeps key order", () => {
+  const out = S.withEntryKeys(cfg(), "right", 0, { openAppsLimit: null })
+  assert.deepStrictEqual(out.bar.layout.right[0], { id: "blackcode.omacolorbar", icon: "omarchy.tray" })
+  assert.deepStrictEqual(Object.keys(S.withEntryKeys(cfg(), "left", 0, { icon: "omarchy.audio" }).bar.layout.left[0]), ["id", "icon"])
+})
+
+test("serialize matches the shell's own format", () => {
+  assert.strictEqual(S.serialize({ a: [1] }), '{\n  "a": [\n    1\n  ]\n}\n')
+})
+
+test("no Array.from or codePointAt", () => {
+  const src = require("fs").readFileSync(require("path").join(__dirname, "..", "ShellEntry.js"), "utf8")
+  assert.ok(src.indexOf("Array.from") === -1 && src.indexOf("codePointAt") === -1)
+})
+```
+
+Check `tests/load.js` first: if it returns the evaluated file's top-level functions/vars differently (e.g. by name list), call it the same way `tests/openapps.test.js` does.
+
+- [ ] **Step 2: Run** `node --test tests/shellentry.test.js` → FAIL (file missing).
+
+- [ ] **Step 3: Write `ShellEntry.js`**
+
+```js
+.pragma library
+
+// Finds one OmaColorBar copy's layout entry in shell.json and changes only that entry.
+// The shell's own inline save rewrites every OmaColorBar entry at once, so the settings
+// card writes the file itself through these helpers.
+
+var PLUGIN_ID = "blackcode.omacolorbar"
+var DEFAULT_ICON = "omarchy.network"
+var SECTIONS = ["left", "center", "right"]
+
+function layoutOf(config) {
+  var layout = config && config.bar ? config.bar.layout : null
+  return layout && typeof layout === "object" ? layout : null
+}
+
+function iconOf(entry) {
+  return entry.icon === undefined || entry.icon === null ? DEFAULT_ICON : String(entry.icon)
+}
+
+function eachCopy(config, fn) {
+  var layout = layoutOf(config)
+  if (!layout) return false
+  for (var s = 0; s < SECTIONS.length; s++) {
+    var list = layout[SECTIONS[s]]
+    if (!Array.isArray(list)) continue
+    for (var i = 0; i < list.length; i++) {
+      var entry = list[i]
+      if (entry && entry.id === PLUGIN_ID) fn(entry, SECTIONS[s], i)
+    }
+  }
+  return true
+}
+
+function findEntry(config, icon) {
+  var found = []
+  var ok = eachCopy(config, function(entry, section, index) {
+    if (iconOf(entry) === icon) found.push({ section: section, index: index })
+  })
+  if (!ok) return { error: "invalid" }
+  if (found.length === 0) return { error: "none" }
+  if (found.length > 1) return { error: "many" }
+  return found[0]
+}
+
+function usedIcons(config) {
+  var icons = []
+  eachCopy(config, function(entry) { icons.push(iconOf(entry)) })
+  return icons
+}
+
+function withEntryKeys(config, section, index, changes) {
+  var copy = JSON.parse(JSON.stringify(config))
+  var entry = copy.bar.layout[section][index]
+  for (var key in changes) {
+    if (key === "id") continue
+    if (changes[key] === null) delete entry[key]
+    else entry[key] = changes[key]
+  }
+  return copy
+}
+
+function serialize(config) {
+  return JSON.stringify(config, null, 2) + "\n"
+}
+```
+
+- [ ] **Step 4: Run all tests** (Global Constraints command) → pass.
+
+- [ ] **Step 5: Commit**
+```bash
+git add ShellEntry.js tests/shellentry.test.js
+git -c user.name=BlackCode -c user.email=aalsheraidah@gmail.com commit -m "ShellEntry.js: find one copy's shell.json entry and change only its keys
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: Settings card on middle-click
+
+**Files:**
+- Create: `SettingsCard.qml`
+- Modify: `Panel.qml` (middle-click area, card instance), `OpenAppsRow.qml` (expose its store and apps), `tests/scale.test.js` (`FILES` += `"SettingsCard.qml"`)
+- Test: `tests/settingscard.test.js`
+
+**Interfaces:**
+- Consumes: `ShellEntry.*` (Task 7); `OpenApps.clampLimit` (Task 4); `HiddenStore { keys; hide(key); show(key) }` (Task 5); `OpenAppsRow` from Task 6 (`id: openRow` in `Panel.qml`, its `HiddenStore` has `id: store`, its `apps` list of `{name, desktopId, ...}`); `Icons.SUPPORTED` (existing).
+- Produces: `OpenAppsRow.hiddenStore` (`readonly property alias hiddenStore: store`); `SettingsCard { anchorItem; bar; owner; icon; settings; hiddenStore; apps; manualHidden; open }`.
+
+Omarchy UI controls used (read their source in `/usr/share/omarchy/shell/Ui/` before use; names below were checked during planning): `PopupCard` (`anchorItem`, `bar`, `owner`, `open`, `fittedContentWidth`, `fittedContentHeight`, `close()`), `Dropdown` (`label`, `value`, `options`, `changed(string)`), `ButtonGroup` (`options`, `value`, `changed(string)`), `ToggleSwitch` (`checked`, `toggled()`), `NumberField` (`label`, `value`, `from`, `to`, `modified(int)`), `Button` (`text`, `clicked()`).
+
+- [ ] **Step 1: Failing test** — `tests/settingscard.test.js` (static checks, since QML has no automated runner here):
+
+```js
+const test = require("node:test")
+const assert = require("node:assert")
+const fs = require("fs")
+const path = require("path")
+const read = f => fs.readFileSync(path.join(__dirname, "..", f), "utf8")
+
+test("the card never uses the shell's inline save", () => {
+  for (const f of ["SettingsCard.qml", "Panel.qml", "OpenAppsRow.qml"])
+    assert.ok(read(f).indexOf("updateEntryInline") === -1, f)
+})
+
+test("the card writes through ShellEntry with a backup and atomic writes", () => {
+  const src = read("SettingsCard.qml")
+  for (const s of ["ShellEntry.findEntry", "ShellEntry.withEntryKeys", "ShellEntry.serialize",
+                   "shell.json.omacolorbar-settings-backup", "atomicWrites: true", "waitForJob"])
+    assert.ok(src.indexOf(s) !== -1, s)
+  assert.ok(src.indexOf("shell.json.omacolorbar-backup\"") === -1, "never touches the swap backup")
+})
+
+test("middle-click opens the card; microphone and agents need Shift", () => {
+  const src = read("Panel.qml")
+  assert.ok(/acceptedButtons:\s*Qt\.MiddleButton/.test(src))
+  assert.ok(src.indexOf("omarchy.microphone") !== -1 && src.indexOf("omarchy.agents") !== -1)
+  assert.ok(src.indexOf("Qt.ShiftModifier") !== -1)
+  assert.ok(src.indexOf("mouse.accepted = false") !== -1)
+})
+```
+
+- [ ] **Step 2: Run** `node --test tests/settingscard.test.js` → FAIL.
+
+- [ ] **Step 3: Expose the row's store** — in `OpenAppsRow.qml` add next to its other properties:
+```qml
+  readonly property alias hiddenStore: store
+```
+
+- [ ] **Step 4: `SettingsCard.qml`**
+
+```qml
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.Commons
+import qs.Ui
+import "Icons.js" as Icons
+import "OpenApps.js" as OpenApps
+import "ShellEntry.js" as ShellEntry
+
+// Middle-click card: this copy's settings, saved straight into its own shell.json entry.
+// The shell's inline save would rewrite every OmaColorBar copy, so the card finds its own
+// entry (ShellEntry.findEntry), backs the file up, and writes it atomically.
+PopupCard {
+  id: card
+
+  property string icon: ""
+  property var settings: ({})
+  property var hiddenStore: null
+  property var apps: []
+  property var manualHidden: []
+  property string message: ""
+
+  readonly property string shellPath: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
+  readonly property bool isMenu: icon === "omarchy.menu"
+  readonly property bool isTray: icon === "omarchy.tray"
+  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+
+  function setting(name, fallback) {
+    var value = settings ? settings[name] : undefined
+    return value === undefined || value === null ? fallback : value
+  }
+
+  // Widgets this copy may switch to: its own, plus any not already used by another copy.
+  function widgetOptions() {
+    var config = readConfig()
+    var used = config ? ShellEntry.usedIcons(config) : []
+    return Icons.SUPPORTED.filter(function(id) { return id === card.icon || used.indexOf(id) === -1 })
+  }
+
+  function readConfig() {
+    reader.reload()
+    try { return JSON.parse(reader.text()) } catch (e) { return null }
+  }
+
+  // Writes `changes` into this copy's entry only. Returns true when the file was written.
+  function save(changes) {
+    var config = readConfig()
+    if (!config) { message = "shell.json can't be read"; return false }
+    var at = ShellEntry.findEntry(config, icon)
+    if (at.error) { message = "Edit shell.json: this copy can't be found uniquely"; return false }
+    backup.setText(reader.text())
+    if (!backup.waitForJob()) { message = "Could not back up shell.json"; return false }
+    writer.setText(ShellEntry.serialize(ShellEntry.withEntryKeys(config, at.section, at.index, changes)))
+    if (!writer.waitForJob()) { message = "Could not write shell.json"; return false }
+    message = ""
+    return true
+  }
+
+  FileView { id: reader; path: card.shellPath; blockLoading: true; printErrors: false }
+  FileView { id: backup; path: card.shellPath + ".omacolorbar-settings-backup"; atomicWrites: true; printErrors: false }
+  FileView {
+    id: writer
+    path: card.shellPath
+    atomicWrites: true
+    printErrors: false
+    onSaveFailed: function(error) { card.message = "Could not write shell.json: " + error }
+  }
+
+  contentWidth: card.fittedContentWidth(Style.space(300))
+  contentHeight: card.fittedContentHeight(column.implicitHeight)
+
+  Column {
+    id: column
+    width: parent.width
+    spacing: Style.space(10)
+
+    Text {
+      text: "OmaColorBar"
+      color: card.foreground
+      font.family: card.fontFamily
+      font.pixelSize: Style.font.title
+      font.bold: true
+    }
+
+    Dropdown {
+      width: parent.width
+      label: "Widget"
+      value: card.icon
+      options: card.open ? card.widgetOptions() : [card.icon]
+      onChanged: function(value) { if (value !== card.icon && card.save({ icon: value })) card.close() }
+    }
+
+    ButtonGroup {
+      visible: card.isMenu
+      options: ["Omarchy", "Arch"]
+      value: String(card.setting("menuLogo", "Omarchy"))
+      onChanged: function(value) { card.save({ menuLogo: value }) }
+    }
+
+    Row {
+      visible: card.isTray
+      spacing: Style.space(8)
+      ToggleSwitch {
+        checked: card.setting("openApps", true) === true
+        onToggled: card.save({ openApps: !checked })
+      }
+      Text { text: "Open apps"; color: card.foreground; font.family: card.fontFamily; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+    }
+
+    NumberField {
+      visible: card.isTray
+      label: "Apps shown"
+      from: 1
+      to: 20
+      value: OpenApps.clampLimit(card.setting("openAppsLimit", 6))
+      onModified: function(value) { card.save({ openAppsLimit: OpenApps.clampLimit(value) }) }
+    }
+
+    Row {
+      visible: card.isTray
+      spacing: Style.space(8)
+      ToggleSwitch {
+        checked: card.setting("showTerminals", false) === true
+        onToggled: card.save({ showTerminals: !checked })
+      }
+      Text { text: "Show terminals"; color: card.foreground; font.family: card.fontFamily; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+    }
+
+    Text {
+      visible: card.isTray
+      text: "Hidden apps"
+      color: Qt.darker(card.foreground, 1.4)
+      font.family: card.fontFamily
+      font.pixelSize: Style.font.caption
+      font.bold: true
+    }
+
+    Repeater {
+      model: card.isTray && card.hiddenStore ? OpenApps.withoutKey(card.hiddenStore.keys.concat(card.manualHidden || []), "") : []
+      delegate: Item {
+        required property var modelData
+        readonly property bool manual: (card.manualHidden || []).indexOf(modelData) !== -1
+        readonly property var app: card.apps.filter(function(a) { return String(a.desktopId) === modelData })[0]
+        width: column.width
+        height: Math.max(name.implicitHeight, showButton.implicitHeight)
+        Text {
+          id: name
+          anchors.verticalCenter: parent.verticalCenter
+          text: (parent.app ? parent.app.name : parent.modelData) + (parent.manual ? "  (set in shell.json)" : "")
+          color: card.foreground
+          font.family: card.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+        Button {
+          id: showButton
+          visible: !parent.manual
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: "Show"
+          onClicked: card.hiddenStore.show(parent.modelData)
+        }
+      }
+    }
+
+    Text {
+      visible: card.message !== ""
+      width: parent.width
+      wrapMode: Text.Wrap
+      text: card.message
+      color: Color.urgent !== undefined ? Color.urgent : card.foreground
+      font.family: card.fontFamily
+      font.pixelSize: Style.font.bodySmall
+    }
+
+    Button {
+      text: "Open shell.json"
+      onClicked: { Quickshell.execDetached(["omarchy-launch-editor", card.shellPath]); card.close() }
+    }
+  }
+}
+```
+
+Notes for the implementer (verify against Omarchy's source, read-only; adjust and record in the report):
+- `FileView.blockLoading` makes `text()` wait for the load after `reload()`; `waitForJob()` waits for a pending `setText`. Both exist in `/usr/lib/qt6/qml/Quickshell/Io/quickshell-io.qmltypes`. If `blockLoading` is not settable from QML, use `blockAllReads: true` instead.
+- The error colour: use the real token from `Commons/Color.qml` (for example a `urgent`/`critical`/`red` property); fall back to `card.foreground`. Do not invent a hard-coded colour.
+- `Dropdown` opens its own popup; check it works inside a `PopupCard` (Omarchy panels already nest it). If it does not, use a `Column` of `Button`s with `selected: modelData === card.icon` instead.
+- `ToggleSwitch`'s `toggled()` fires before or after `checked` flips: read `ToggleSwitch.qml` and write the inverse correctly (the goal: the saved value is the new state).
+- `PopupCard.close()` calls `owner.close()` when an owner is set; `Panel.qml` gives the card `owner: root` and a `function close() { settingsCard.open = false }` (Step 5).
+
+- [ ] **Step 5: Wire it into `Panel.qml`** — add `import "ShellEntry.js" as ShellEntry` is not needed here (the card imports it). Add after the `BarIconButton { id: warning … }` block:
+
+```qml
+  // Middle-click opens this copy's settings card. Microphone and agents use middle-click
+  // themselves, so on those two the card needs Shift+middle-click and plain middle-click
+  // goes to the widget. Only the middle button is taken: left/right clicks, scroll and
+  // hover still reach the hosted widget.
+  readonly property bool hostUsesMiddle: hostId === "omarchy.microphone" || hostId === "omarchy.agents"
+
+  function close() { settingsCard.open = false }
+
+  MouseArea {
+    anchors.fill: parent
+    z: 10
+    acceptedButtons: Qt.MiddleButton
+    onPressed: function(mouse) {
+      if (root.hostUsesMiddle && !(mouse.modifiers & Qt.ShiftModifier)) {
+        mouse.accepted = false
+        return
+      }
+      settingsCard.open = !settingsCard.open
+    }
+  }
+
+  SettingsCard {
+    id: settingsCard
+    anchorItem: root
+    bar: root.bar
+    owner: root
+    icon: root.hostId
+    settings: root.settings
+    hiddenStore: openRow.hiddenStore
+    apps: openRow.apps
+    manualHidden: root.setting("hiddenApps", [])
+  }
+```
+
+Check that `root` has no existing `close()` function; if it does, name this one so it does not collide and give the card a small `QtObject { function close() { … } }` owner instead.
+
+- [ ] **Step 6:** add `"SettingsCard.qml"` to `FILES` in `tests/scale.test.js`. Run all tests → pass (replace any literal size the scan reports with a `Style` token; the `from: 1`/`to: 20` values are not sizes, and the scan only checks size properties).
+
+- [ ] **Step 7: Commit**
+```bash
+git add SettingsCard.qml Panel.qml OpenAppsRow.qml tests/settingscard.test.js tests/scale.test.js
+git -c user.name=BlackCode -c user.email=aalsheraidah@gmail.com commit -m "Settings card on middle-click: widget, menu logo, open apps, hidden apps
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 9: Release files, live check at every scale, poster, merge (controller runs the live parts)
 
 **Files:**
 - Modify: `manifest.json` (version, description), `tests/manifest.test.js`, `README.md` — by a subagent (Step 1)
@@ -1075,7 +1550,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1 (subagent): release files**
   - Test: change the version test to `"1.2.0"`; run → FAIL; set `"version": "1.2.0"`; description: `"OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, open apps and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]"`; run → pass.
-  - README: new section "Open apps" (what shows, what is left out and why: terminals, tray apps, windows with no app; click/cycle; count; `+N`; right-click hide and the Hidden apps list; where hides are stored: the state file path, and that `hiddenApps` in `shell.json` adds manual hides that can only be removed there); Settings table gets the four keys with defaults; a "Menu logo" line: `"menuLogo": "Arch"` or `"Omarchy"` on the copy set to `omarchy.menu`; "Display scale" line: every icon follows the theme's sizes and the monitor scale; "Updating from 1.1.0": no swap needed, the tray copy shows open apps after `omarchy restart shell`; to turn it off set `"openApps": false` on the tray copy. No em dashes.
+  - README: new section "Open apps" (what shows, what is left out and why: terminals, tray apps, windows with no app; click/cycle; count; `+N`; right-click hide and the Hidden apps list; where hides are stored: the state file path, and that `hiddenApps` in `shell.json` adds manual hides that can only be removed there); new section "Settings from the bar" (middle-click any color icon, Shift+middle-click on the microphone and agents copies; what each row changes; it saves straight into that copy's entry in `shell.json` and keeps one backup at `~/.config/omarchy/shell.json.omacolorbar-settings-backup`; widgets already used by another copy are not offered; if the copy can't be found uniquely it writes nothing); Settings table gets the four keys with defaults; a "Menu logo" line: `"menuLogo": "Arch"` or `"Omarchy"` on the copy set to `omarchy.menu`; "Display scale" line: every icon follows the theme's sizes and the monitor scale; "Updating from 1.1.0": no swap needed, the tray copy shows open apps after `omarchy restart shell`; to turn it off set `"openApps": false` on the tray copy. No em dashes.
   - Commit: `"OmaColorBar 1.2.0: README and manifest"` with the trailer.
 
 - [ ] **Step 2 (controller): live checks at scale 1** — `cp ~/.config/omarchy/shell.json "$SCRATCH/shell.json.pre-1.2"`; `omarchy restart shell`; wait. Screenshot and read after each; record PASS/FAIL in the ledger:
@@ -1084,10 +1559,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   3. Set `"openAppsLimit": 2` on the tray copy entry (back up first) → `+N` shows the rest; click opens the list; clicking an app focuses it; restore the setting.
   4. Right-click an app → "Hide … from bar" → it disappears; the state file holds its key; `omarchy restart shell` → still hidden; right-click `+N` or another icon → Hidden apps → click it → back.
   5. `"openApps": false` → the tray copy is exactly 1.1.0; restore.
-  6. Every other OmaColorBar icon still shows (menu, network, bluetooth, audio, monitor, power, agents, tailscale, weather); no `[omacolorbar]` warnings or QML errors in the log.
+  6. Settings card: middle-click the menu, tray, network and weather copies → card opens with the right rows; left/right click on each still does Omarchy's action. Microphone/agents copies (if on the bar; otherwise skip and note): plain middle-click keeps their action, Shift+middle opens the card. Menu logo Omarchy→Arch→Omarchy changes the bar live; tray "Apps shown" 6→2→6 and "Open apps" off→on change the row live; `diff` of `shell.json` against `$SCRATCH/shell.json.pre-1.2` after each change shows only that entry; the backup file exists. Change the network copy's widget to an unused one and back → that copy rebuilds. "Show" in Hidden apps unhides. Restore `shell.json` from the backup at the end.
+  7. Every other OmaColorBar icon still shows (menu, network, bluetooth, audio, monitor, power, agents, tailscale, weather); no `[omacolorbar]` warnings or QML errors in the log.
 
-- [ ] **Step 3 (controller): every scale** — for monitor scale 1.5 and 2 on DP-2 (`hyprctl keyword monitor DP-2,<mode>,<pos>,1.5`, then `,2`; `<mode>`/`<pos>` from `hyprctl monitors -j`): `omarchy restart shell`, wait, screenshot the full DP-2 bar and read it at full resolution. Check every OmaColorBar icon, the weather icon, the tray app icon, open-app icons, the count badge, `+N`, the `+N` popup and the right-click card: sharp (no blur or jaggies), sized like Omarchy's own icons next to them, nothing clipped or overlapping. Then restore with `hyprctl reload` and confirm scale 1. Any failure → fix on `v1.2` (test first where possible), commit, re-check.
+- [ ] **Step 3 (controller): every scale** — for monitor scale 1.5 and 2 on DP-2 (`hyprctl keyword monitor DP-2,<mode>,<pos>,1.5`, then `,2`; `<mode>`/`<pos>` from `hyprctl monitors -j`): `omarchy restart shell`, wait, screenshot the full DP-2 bar and read it at full resolution. Check every OmaColorBar icon, the weather icon, the tray app icon, open-app icons, the count badge, `+N`, the `+N` popup, the right-click card and the settings card: sharp (no blur or jaggies), sized like Omarchy's own icons next to them, nothing clipped or overlapping. Then restore with `hyprctl reload` and confirm scale 1. Any failure → fix on `v1.2` (test first where possible), commit, re-check.
 
-- [ ] **Step 4 (controller): poster** — `omacolorbar.html`: kicker "RELEASE 1.2.0"; the top bar shows the tray (Claude) followed by 3–4 open-app icons (real installed icons copied into `~/Pictures/omarchy-plugin-posters/icons/`), one with a count badge, and a `+2`; features line "New in 1.2: Open apps · Hide/show · Any scale". `./render.sh omacolorbar.html`, read, fix overflow, copy to `preview.png`, commit `"Poster for 1.2.0"` with the trailer.
+- [ ] **Step 4 (controller): poster** — `omacolorbar.html`: kicker "RELEASE 1.2.0"; the top bar shows the tray (Claude) followed by 3–4 open-app icons (real installed icons copied into `~/Pictures/omarchy-plugin-posters/icons/`), one with a count badge, and a `+2`; features line "New in 1.2: Open apps · Hide/show · Settings from the bar · Any scale". `./render.sh omacolorbar.html`, read, fix overflow, copy to `preview.png`, commit `"Poster for 1.2.0"` with the trailer.
 
 - [ ] **Step 5 (controller): merge locally** — restore `shell.json` from `$SCRATCH/shell.json.pre-1.2` if any test setting is left, `git switch main && git merge --ff-only v1.2`, report, and ask before `git push` and the marketplace step.
