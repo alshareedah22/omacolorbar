@@ -35,6 +35,12 @@ class SwappedTest(unittest.TestCase):
             {"id": "blackcode.omacolorbar", "icon": "omarchy.weather"}])
         self.assertFalse(any(e.get("id") == "omarchy.indicators" for e in out.get("plugins", [])))
 
+    def test_swaps_the_tray(self):
+        config = {"bar": {"layout": {"left": [], "center": [], "right": [{"id": "omarchy.tray", "pinned": ["a"]}]}}}
+        out = colorbar.swapped(config)
+        self.assertEqual(out["bar"]["layout"]["right"], [{"id": "blackcode.omacolorbar", "icon": "omarchy.tray"}])
+        self.assertIn({"id": "omarchy.tray", "pinned": ["a"]}, out["plugins"])
+
     def test_swaps_supported_ids_in_place(self):
         out = colorbar.swapped(SAMPLE)
         self.assertEqual(out["bar"]["layout"]["left"][0], {"id": "blackcode.omacolorbar", "icon": "omarchy.menu"})

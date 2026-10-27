@@ -47,9 +47,10 @@ var BATTERY_FULL = "f0085"
 
 var TAILSCALE_STATES = ["on", "off", "login"]
 
-// These drawings are not used by 1.1.0 (hosted indicators cannot reach Omarchy's idle, night light and notification services); kept for a later indicators plugin.
 // Indicator glyph -> drawing (bar/indicators/*.qml activeText / inactiveText). Dictation
-// shows f036c while recording and when off, f051f while transcribing.
+// shows f036c while recording and when off, f051f while transcribing. Not used by 1.1.0
+// (hosted indicators cannot reach Omarchy's idle, night light and notification services);
+// kept for a later indicators plugin.
 var INDICATORS = {
   f0176: "ind-stayawake", f009b: "ind-dnd", f050e: "ind-nightlight", f0ec2: "ind-recording",
   f036c: "ind-dictation", f051f: "ind-dictation", f088c: "ind-reminder"
