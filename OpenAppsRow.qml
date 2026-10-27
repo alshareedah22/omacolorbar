@@ -3,6 +3,7 @@ import QtQuick.Window
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Apps.js" as Apps
 import "OpenApps.js" as OpenApps
@@ -22,7 +23,10 @@ Item {
   readonly property bool vertical: bar ? bar.vertical === true : false
   readonly property int slot: Style.bar.statusSlot
   readonly property int iconSize: Style.bar.iconCanvas
-  readonly property color foreground: bar ? bar.foreground : Color.popups.text
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.popups.text
+  // Commons.Color: a bare `Color` resolves to another type in this file's imports.
+  readonly property color badgeColor: Commons.Color.popups.border
+  readonly property color badgeText: Commons.Color.popups.background
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   property var apps: []           // [{name, icon, wmClass, desktopId, terminal}]
@@ -171,12 +175,12 @@ Item {
       width: Math.max(height, count.implicitWidth + Style.space(4))
       height: Style.space(10)
       radius: height / 2
-      color: Color.popups.border
+      color: row.badgeColor
       Text {
         id: count
         anchors.centerIn: parent
         text: String(appIcon.group.windows.length)
-        color: Color.popups.background
+        color: row.badgeText
         font.family: row.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
