@@ -304,7 +304,10 @@ Item {
     target: root.drawerActive && root.trayChevron ? root.tray : null
     ignoreUnknownSignals: true
     function onExpandedChanged() {
-      if (!root.tray.expanded && (root.pointerInArea && root.reveal > 0 || root.holdOpen)) root.tray.expanded = true
+      // Read the hover handler directly: pointerInArea can still be stale while
+      // keepOpen's own hoveredChanged handler is collapsing the drawer.
+      var inArea = keepOpen.hovered && keepOpen.point.position.x < root.areaWidth
+      if (!root.tray.expanded && (inArea && root.reveal > 0 || root.holdOpen)) root.tray.expanded = true
     }
   }
 
