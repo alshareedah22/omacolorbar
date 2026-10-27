@@ -37,7 +37,10 @@ Item {
         console.warn("[omacolorbar] " + file.path + " is not a JSON list of app ids; ignoring it")
       }
     }
-    onLoadFailed: store.keys = []
-    onSaveFailed: function(error) { console.warn("[omacolorbar] could not save hidden apps: " + error) }
+    // Only a missing file means "nothing hidden". Another monitor's store renaming its write
+    // into place can fail a reload for a moment; keep the list then, or the next hide would
+    // save over the other hides.
+    onLoadFailed: function(error) { if (error === FileViewError.FileNotFound) store.keys = [] }
+    onSaveFailed: function(error) { console.warn("[omacolorbar] could not save hidden apps: " + FileViewError.toString(error)) }
   }
 }
