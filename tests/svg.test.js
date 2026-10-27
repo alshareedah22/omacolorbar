@@ -26,3 +26,20 @@ test("gradients use user space, the Arch logo is the official solid blue", () =>
   assert.ok(arch.includes('fill="#1793d1"'))
   assert.ok(!arch.includes("linearGradient") && !arch.includes("opacity"))
 })
+
+test("indicator off variants are gray and match their color shapes", () => {
+  for (const base of ["stayawake", "dnd", "nightlight", "recording", "dictation", "reminder"]) {
+    const on = fs.readFileSync(path.join(dir, "ind-" + base + ".svg"), "utf8")
+    const off = fs.readFileSync(path.join(dir, "ind-" + base + "-off.svg"), "utf8")
+    assert.ok(off.includes("#6b7280") && off.includes("#9ca3af"), base)
+    const shapes = s => s.replace(/<defs>.*?<\/defs>/, "")
+    assert.strictEqual(shapes(on), shapes(off), base)
+  }
+})
+
+test("no SVG uses features Qt's SVG Tiny renderer drops", () => {
+  for (const f of fs.readdirSync(dir)) {
+    const s = fs.readFileSync(path.join(dir, f), "utf8")
+    assert.ok(!/<mask|<filter|<clipPath/.test(s), f)
+  }
+})

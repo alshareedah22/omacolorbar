@@ -90,6 +90,40 @@ test("hostSettingsFrom and onBarDirectly read shell.json", () => {
   assert.strictEqual(I.onBarDirectly({}, "omarchy.power"), false)
 })
 
+test("weather: every condition glyph has its drawing, label kept", () => {
+  const want = {
+    e30d: "weather-clear-day", e32b: "weather-clear-night",
+    e302: "weather-partly-day", e32e: "weather-partly-night",
+    e33d: "weather-cloudy",
+    e313: "weather-fog-day", e346: "weather-fog-night",
+    e308: "weather-showers-day", e333: "weather-showers-night",
+    e318: "weather-rain",
+    e30a: "weather-snow-day", e327: "weather-snow-night",
+    e31a: "weather-heavy-snow", e3ad: "weather-sleet", e31d: "weather-thunder"
+  }
+  for (const [cp, name] of Object.entries(want))
+    assert.deepStrictEqual(I.drawingFor("omarchy.weather", g(cp), {}), { kind: "svg", name, label: "" }, cp)
+  assert.strictEqual(I.drawingFor("omarchy.weather", "21° " + g("e30d"), {}).label, "21°")
+  assert.strictEqual(I.drawingFor("omarchy.weather", "", {}), null)
+})
+
+test("indicators: color when active, gray when not", () => {
+  const want = { f0176: "ind-stayawake", f009b: "ind-dnd", f050e: "ind-nightlight", f0ec2: "ind-recording",
+    f036c: "ind-dictation", f051f: "ind-dictation", f088c: "ind-reminder" }
+  for (const [cp, name] of Object.entries(want)) {
+    assert.deepStrictEqual(I.indicatorDrawing(g(cp), true), { kind: "svg", name, label: "" }, cp)
+    assert.deepStrictEqual(I.indicatorDrawing(g(cp), false), { kind: "svg", name: name + "-off", label: "" }, cp)
+  }
+  assert.strictEqual(I.indicatorDrawing(g("f0001"), true), null)
+  assert.strictEqual(I.indicatorDrawing("", true), null)
+})
+
+test("svgNames lists the weather and both indicator variants", () => {
+  const names = I.svgNames()
+  for (const n of ["weather-clear-day", "weather-thunder", "weather-fog-night", "ind-dnd", "ind-dnd-off",
+    "ind-dictation", "ind-dictation-off", "ind-reminder-off"]) assert.ok(names.includes(n), n)
+})
+
 // Every glyph Omarchy can put on these buttons, read from the installed shell. Skipped
 // where Omarchy is not installed; after an Omarchy update it names any new glyph.
 const SHELL = "/usr/share/omarchy/shell/plugins"
@@ -129,6 +163,23 @@ test("every glyph in the installed Omarchy has a drawing", { skip: !installed &&
   const missing = []
   for (const [id, text] of cases)
     for (const cp of privateUse(text)) if (!I.drawingFor(id, g(cp), {})) missing.push(id + " " + cp)
+  assert.deepStrictEqual(missing, [])
+})
+
+const decode = s => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+
+test("every weather glyph in the installed Omarchy has a drawing", { skip: !installed && "Omarchy not installed" }, () => {
+  const glyphs = privateUse(decode(functionBody("panels/weather/Model.js", "iconForCode")))
+  assert.ok(glyphs.length >= 15, "found " + glyphs.length)
+  assert.deepStrictEqual(glyphs.filter(cp => !I.drawingFor("omarchy.weather", g(cp), {})), [])
+})
+
+test("every indicator glyph in the installed Omarchy has a drawing", { skip: !installed && "Omarchy not installed" }, () => {
+  const dir = path.join(SHELL, "bar/indicators")
+  const missing = []
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith(".qml")))
+    for (const cp of privateUse(decode(fs.readFileSync(path.join(dir, f), "utf8"))))
+      if (!I.indicatorDrawing(g(cp), true)) missing.push(f + " " + cp)
   assert.deepStrictEqual(missing, [])
 })
 

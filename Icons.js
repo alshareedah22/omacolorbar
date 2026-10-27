@@ -27,7 +27,17 @@ var GLYPHS = {
   "omarchy.microphone": { f036c: svg("mic-on"), f036d: svg("mic-off") },
   "omarchy.monitor": { f0379: svg("monitor-one"), f037a: svg("monitor-many") },
   "omarchy.system-update": { f021: svg("update") },
-  "omarchy.agents": { f16a3: svg("agents") }
+  "omarchy.agents": { f16a3: svg("agents") },
+  "omarchy.weather": {
+    e30d: svg("weather-clear-day"), e32b: svg("weather-clear-night"),
+    e302: svg("weather-partly-day"), e32e: svg("weather-partly-night"),
+    e33d: svg("weather-cloudy"),
+    e313: svg("weather-fog-day"), e346: svg("weather-fog-night"),
+    e308: svg("weather-showers-day"), e333: svg("weather-showers-night"),
+    e318: svg("weather-rain"),
+    e30a: svg("weather-snow-day"), e327: svg("weather-snow-night"),
+    e31a: svg("weather-heavy-snow"), e3ad: svg("weather-sleet"), e31d: svg("weather-thunder")
+  }
 }
 
 // Battery glyphs by fill step (power/Model.js: floor(percentage * 10)).
@@ -36,6 +46,19 @@ var BATTERY_CHARGING = ["f089c", "f0086", "f0087", "f0088", "f089d", "f0089", "f
 var BATTERY_FULL = "f0085"
 
 var TAILSCALE_STATES = ["on", "off", "login"]
+
+// Indicator glyph -> drawing (bar/indicators/*.qml activeText / inactiveText). Dictation
+// shows f036c while recording and when off, f051f while transcribing.
+var INDICATORS = {
+  f0176: "ind-stayawake", f009b: "ind-dnd", f050e: "ind-nightlight", f0ec2: "ind-recording",
+  f036c: "ind-dictation", f051f: "ind-dictation", f088c: "ind-reminder"
+}
+
+// Color when the mode is on, the gray "-off" drawing when it is off.
+function indicatorDrawing(text, active) {
+  var base = INDICATORS[split(text).key]
+  return base ? { kind: "svg", name: active ? base : base + "-off", label: "" } : null
+}
 
 function isPrivateUse(cp) { return (cp >= 0xe000 && cp <= 0xf8ff) || cp >= 0xf0000 }
 
@@ -96,6 +119,10 @@ function svgNames() {
   for (var id in GLYPHS)
     for (var key in GLYPHS[id])
       if (GLYPHS[id][key].kind === "svg" && names.indexOf(GLYPHS[id][key].name) === -1) names.push(GLYPHS[id][key].name)
+  for (var g in INDICATORS) {
+    if (names.indexOf(INDICATORS[g]) === -1) names.push(INDICATORS[g])
+    if (names.indexOf(INDICATORS[g] + "-off") === -1) names.push(INDICATORS[g] + "-off")
+  }
   return names
 }
 

@@ -2,6 +2,7 @@
 """Writes icons/*.svg, OmaColorBar's fixed icons, in one style: a two-stop gradient per
 widget, a soft shadow (the same shapes in black at 35%), 64x64. Run it after changing a
 shape or a color; the generated files are committed."""
+import math
 import os
 import re
 
@@ -70,6 +71,95 @@ ARCH_PATH = ("m127.98 12.07c-10.316 25.309-16.543 41.855-28.031 66.41 7.043 7.46
              "39.105-7.1484-13.156-13.527-25.016-19.621-36.316-9.5938-7.4336-19.605-17.117-40.023-27.594 14.035 3.6406 24.082 "
              "7.8516 31.914 12.555-61.941-115.32-66.957-130.66-88.199-180.5z")
 
+WEATHER_DEFS = (gradient("sun", "#f59e0b", "#fde047") + gradient("moon", "#c4b5fd", "#e0e7ff")
+                + gradient("cloud", "#94a3b8", "#e2e8f0"))
+RAIN = "#38bdf8"
+SNOW = "#ffffff"
+BOLT = "#facc15"
+CLOUD_D = "M18 48 h30 a10 10 0 0 0 0 -20 a14 14 0 0 0 -26 -4 a10 10 0 0 0 -4 24 z"
+
+
+def framed(defs, body):
+    shadow = re.sub(r'(fill|stroke)="(?!none)[^"]*"', r'\1="#000"', body)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+            f'<defs>{defs}</defs>'
+            f'<g opacity=".35" transform="translate(1.5 1.5)">{shadow}</g>{body}</svg>\n')
+
+
+def sun(cx, cy, r, ray_in, ray_out, width):
+    rays = "".join(
+        f'<path d="M{cx + ray_in * math.cos(a):.1f} {cy + ray_in * math.sin(a):.1f} '
+        f'L{cx + ray_out * math.cos(a):.1f} {cy + ray_out * math.sin(a):.1f}" '
+        f'fill="none" stroke="url(#sun)" stroke-width="{width}" stroke-linecap="round"/>'
+        for a in (i * math.pi / 4 for i in range(8)))
+    return rays + f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#sun)"/>'
+
+
+def moon(cx, cy, r):
+    # crescent opening to the right: outer arc down the left side, flatter inner arc back up
+    return (f'<path d="M{cx} {cy - r} A{r} {r} 0 0 0 {cx} {cy + r} '
+            f'A{r * 1.3:.1f} {r * 1.3:.1f} 0 0 1 {cx} {cy - r} Z" fill="url(#moon)"/>')
+
+
+def cloud(dx=0, dy=0, scale=1.0, opacity=None):
+    op = f' opacity="{opacity}"' if opacity else ""
+    return f'<g transform="translate({dx} {dy}) scale({scale})"{op}><path d="{CLOUD_D}" fill="url(#cloud)"/></g>'
+
+
+def drops(*xs, y=48):
+    return "".join(f'<path d="M{x} {y} l-3 9" fill="none" stroke="{RAIN}" stroke-width="4" stroke-linecap="round"/>'
+                   for x in xs)
+
+
+def flakes(*points):
+    return "".join(f'<circle cx="{x}" cy="{y}" r="3.2" fill="{SNOW}"/>' for x, y in points)
+
+
+SMALL_SUN = sun(20, 20, 9, 13, 18, 3.5)
+SMALL_MOON = moon(20, 20, 12)
+FOG = "".join(f'<path d="M{x1} {y} H{x2}" fill="none" stroke="url(#cloud)" stroke-width="4.5" stroke-linecap="round"/>'
+              for x1, x2, y in ((10, 54, 40), (16, 48, 49), (10, 54, 58)))
+BOLT_D = f'<path d="M34 36 L24 50 H32 L28 62 L42 45 H34 L38 36 Z" fill="{BOLT}"/>'
+
+
+def weather(body):
+    return framed(WEATHER_DEFS, body)
+
+
+GRAY = ("#6b7280", "#9ca3af")
+INDICATOR_COLORS = {
+    "stayawake": ("#d97706", "#fbbf24"),
+    "dnd": ("#ef4444", "#f97316"),
+    "nightlight": ("#f97316", "#fde68a"),
+    "recording": ("#dc2626", "#f87171"),
+    "dictation": ("#0ea5e9", "#a78bfa"),
+    "reminder": ("#10b981", "#6ee7b7"),
+}
+INDICATOR_SHAPES = {
+    "stayawake": ('<path d="M20 6 q4 4 0 8 q-4 4 0 8 M30 6 q4 4 0 8 q-4 4 0 8" fill="none" stroke="url(#b)" stroke-width="3.5" stroke-linecap="round"/>'
+                  '<path d="M10 26 h34 v12 a14 14 0 0 1 -14 14 h-6 a14 14 0 0 1 -14 -14 z" fill="url(#a)"/>'
+                  '<path d="M44 30 h4 a7 7 0 0 1 0 14 h-4" fill="none" stroke="url(#b)" stroke-width="5"/>'
+                  '<rect x="6" y="54" width="42" height="5" rx="2.5" fill="url(#b)"/>'),
+    "dnd": ('<path d="M32 6 a4 4 0 0 1 4 4 v2 a16 16 0 0 1 12 15 v13 l6 6 v2 H10 v-2 l6 -6 V27 a16 16 0 0 1 12 -15 v-2 a4 4 0 0 1 4 -4 z" fill="url(#a)"/>'
+            '<path d="M26 52 a6 6 0 0 0 12 0 z" fill="url(#b)"/>'
+            '<path d="M10 8 L54 56" fill="none" stroke="url(#b)" stroke-width="5" stroke-linecap="round"/>'),
+    "nightlight": ('<path d="M30 8 A24 24 0 0 0 30 56 A31.2 31.2 0 0 1 30 8 Z" fill="url(#a)"/>'
+                   '<circle cx="44" cy="18" r="3.5" fill="url(#b)"/><circle cx="52" cy="32" r="2.5" fill="url(#b)"/>'
+                   '<circle cx="44" cy="44" r="3" fill="url(#b)"/>'),
+    "recording": ('<circle cx="32" cy="32" r="24" fill="none" stroke="url(#a)" stroke-width="6"/>'
+                  '<circle cx="32" cy="32" r="12" fill="url(#b)"/>'),
+    "dictation": MIC.format(f="url(#a)", s="url(#b)"),
+    "reminder": ('<path d="M8 16 a10 10 0 0 1 12 -8 M56 16 a10 10 0 0 0 -12 -8" fill="none" stroke="url(#b)" stroke-width="5" stroke-linecap="round"/>'
+                 '<circle cx="32" cy="35" r="21" fill="url(#a)"/>'
+                 '<path d="M32 22 V35 L41 41" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+}
+
+
+def indicator(shape, colors):
+    a, b = colors
+    return framed(gradient("a", a, b) + gradient("b", b, a), INDICATOR_SHAPES[shape])
+
+
 ICONS = {
     "menu-omarchy": lambda: icon("omarchy", "".join(
         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="url(#a)"/>' for x, y, w, h in OMARCHY_RECTS)),
@@ -129,7 +219,27 @@ ICONS = {
         '<path d="M32 6 L60 56 H4 Z" fill="url(#a)" stroke="url(#a)" stroke-width="4" stroke-linejoin="round"/>'
         '<path d="M32 24 V38" fill="none" stroke="ACCENT" stroke-width="6" stroke-linecap="round"/>'
         '<circle cx="32" cy="47" r="3.5" fill="ACCENT"/>'),
+    "weather-clear-day": lambda: weather(sun(32, 32, 13, 19, 27, 5)),
+    "weather-clear-night": lambda: weather(moon(30, 32, 22) + flakes((48, 16), (54, 30))),
+    "weather-partly-day": lambda: weather(SMALL_SUN + cloud(6, 10, 0.85)),
+    "weather-partly-night": lambda: weather(SMALL_MOON + cloud(6, 10, 0.85)),
+    "weather-cloudy": lambda: weather(cloud(-6, -6, 0.75, ".7") + cloud(4, 6, 0.95)),
+    "weather-fog-day": lambda: weather(SMALL_SUN + cloud(8, -8, 0.7) + FOG),
+    "weather-fog-night": lambda: weather(SMALL_MOON + cloud(8, -8, 0.7) + FOG),
+    "weather-showers-day": lambda: weather(SMALL_SUN + cloud(6, -2, 0.85) + drops(30, 44)),
+    "weather-showers-night": lambda: weather(SMALL_MOON + cloud(6, -2, 0.85) + drops(30, 44)),
+    "weather-rain": lambda: weather(cloud(0, -8) + drops(22, 33, 44)),
+    "weather-snow-day": lambda: weather(SMALL_SUN + cloud(6, -2, 0.85) + flakes((30, 52), (44, 56))),
+    "weather-snow-night": lambda: weather(SMALL_MOON + cloud(6, -2, 0.85) + flakes((30, 52), (44, 56))),
+    "weather-heavy-snow": lambda: weather(cloud(0, -8) + flakes((20, 48), (32, 48), (44, 48), (26, 58), (38, 58))),
+    "weather-sleet": lambda: weather(cloud(0, -8) + drops(22, 40) + flakes((31, 54), (49, 54))),
+    "weather-thunder": lambda: weather(cloud(0, -10) + BOLT_D),
 }
+
+
+for _name, _colors in INDICATOR_COLORS.items():
+    ICONS["ind-" + _name] = (lambda n=_name, c=_colors: indicator(n, c))
+    ICONS["ind-" + _name + "-off"] = (lambda n=_name: indicator(n, GRAY))
 
 
 def main():
