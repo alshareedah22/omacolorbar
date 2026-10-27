@@ -25,6 +25,9 @@ Item {
   // Same width as a tray item, so open apps and tray apps are spaced alike.
   readonly property int itemWidth: Style.bar.iconSlot
   readonly property int iconSize: Style.bar.iconCanvas
+  // Open apps on the bar are drawn a bit smaller, matching the visible logo of tray app icons
+  // such as Claude's, whose artwork keeps a transparent margin (user's choice).
+  readonly property int barIconSize: Math.round(Style.bar.iconCanvas * 0.85)
   readonly property color foreground: bar ? bar.foreground : Commons.Color.popups.text
   // Commons.Color: a bare `Color` resolves to another type in this file's imports.
   readonly property color badgeColor: Commons.Color.popups.border
@@ -190,8 +193,8 @@ Item {
       onWantedChanged: failed = false
       onStatusChanged: if (status === Image.Error) failed = true
       anchors.centerIn: parent
-      width: row.iconSize
-      height: row.iconSize
+      width: row.barIconSize
+      height: row.barIconSize
       source: failed || wanted === "" ? Qt.resolvedUrl("icons/app.svg") : wanted
       sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
       sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
