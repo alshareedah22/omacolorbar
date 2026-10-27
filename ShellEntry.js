@@ -62,3 +62,19 @@ function withEntryKeys(config, section, index, changes) {
 function serialize(config) {
   return JSON.stringify(config, null, 2) + "\n"
 }
+
+// Plans one save from the raw shell.json text: {next} (the text to write), {unchanged: true},
+// or {error: "invalid" | "none" | "many" | "used"}. Pure: no file access.
+function planSave(raw, icon, changes) {
+  var config
+  try { config = JSON.parse(raw) } catch (e) { return { error: "invalid" } }
+  if (!config || typeof config !== "object") return { error: "invalid" }
+  var at = findEntry(config, icon)
+  if (at.error) return { error: at.error }
+  var target = changes ? changes.icon : undefined
+  if (target !== undefined && target !== null && String(target) !== icon && usedIcons(config).indexOf(String(target)) !== -1)
+    return { error: "used" }
+  var next
+  try { next = serialize(withEntryKeys(config, at.section, at.index, changes || {})) } catch (e) { return { error: "invalid" } }
+  return next === raw ? { unchanged: true } : { next: next }
+}

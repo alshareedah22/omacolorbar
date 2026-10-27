@@ -24,6 +24,7 @@ PopupCard {
   readonly property string shellPath: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
   readonly property bool isMenu: icon === "omarchy.menu"
   readonly property bool isTray: icon === "omarchy.tray"
+  readonly property var hiddenManual: Array.isArray(manualHidden) ? manualHidden : []
   readonly property color foreground: bar ? bar.foreground : Commons.Color.popups.text
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
@@ -32,32 +33,52 @@ PopupCard {
     return value === undefined || value === null ? fallback : value
   }
 
+  property var widgetChoices: [icon]
+  property bool backupFailed: false
+  property bool writeFailed: false
+
+  onOpenChanged: if (open) widgetChoices = widgetOptions()
+
   // Widgets this copy may switch to: its own, plus any not already used by another copy.
   function widgetOptions() {
-    var config = readConfig()
+    var raw = readRaw()
+    var config = null
+    try { config = raw === null ? null : JSON.parse(raw) } catch (e) { config = null }
     var used = config ? ShellEntry.usedIcons(config) : []
     return Icons.SUPPORTED.filter(function(id) { return id === card.icon || used.indexOf(id) === -1 })
   }
 
-  function readConfig() {
+  // The file's current text (a fresh read), or null when it can't be read.
+  function readRaw() {
     try {
       reader.reload()
-      return JSON.parse(reader.text())
+      return String(reader.text())
     } catch (e) { return null }
   }
 
-  // Writes `changes` into this copy's entry only. Returns true when the file was written.
+  // Writes `changes` into this copy's entry only. Returns true when nothing is left to do.
   function save(changes) {
     try {
-      var config = readConfig()
-      if (!config) { message = "shell.json can't be read"; return false }
-      var at = ShellEntry.findEntry(config, icon)
-      if (at.error) { message = "Edit shell.json: this copy can't be found uniquely"; return false }
-      var next = ShellEntry.serialize(ShellEntry.withEntryKeys(config, at.section, at.index, changes))
-      backup.setText(reader.text())
-      if (!backup.waitForJob()) { message = "Could not back up shell.json"; return false }
-      writer.setText(next)
-      if (!writer.waitForJob()) { message = "Could not write shell.json"; return false }
+      var raw = readRaw()
+      if (raw === null || raw === "") { message = "shell.json can't be read"; return false }
+      var plan = ShellEntry.planSave(raw, icon, changes)
+      if (plan.error) {
+        message = plan.error === "used" ? "That widget is already on the bar"
+          : plan.error === "invalid" ? "shell.json can't be read"
+          : "Edit shell.json: this copy can't be found uniquely"
+        return false
+      }
+      if (plan.unchanged) { message = ""; return true }
+      backupFailed = false
+      backup.setText(raw)
+      if (!backup.waitForJob() || backupFailed) { message = "Could not back up shell.json"; return false }
+      writeFailed = false
+      message = ""
+      writer.setText(plan.next)
+      if (!writer.waitForJob() || writeFailed) {
+        if (message === "") message = "Could not write shell.json"
+        return false
+      }
       message = ""
       return true
     } catch (e) {
@@ -67,13 +88,14 @@ PopupCard {
   }
 
   // PopupCard's default property only takes visual items, so the file views are properties.
-  property FileView reader: FileView { path: card.shellPath; blockLoading: true; printErrors: false }
-  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; printErrors: false }
+  property FileView reader: FileView { path: card.shellPath; blockAllReads: true; printErrors: false }
+  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; preload: false; printErrors: false; onSaveFailed: function(error) { card.backupFailed = true } }
   property FileView writer: FileView {
     path: card.shellPath
     atomicWrites: true
+    preload: false
     printErrors: false
-    onSaveFailed: function(error) { card.message = "Could not write shell.json: " + FileViewError.toString(error) }
+    onSaveFailed: function(error) { card.writeFailed = true; card.message = "Could not write shell.json: " + FileViewError.toString(error) }
   }
 
   contentWidth: card.fittedContentWidth(Style.space(300))
@@ -96,7 +118,7 @@ PopupCard {
       width: parent.width
       label: "Widget"
       value: card.icon
-      options: card.open ? card.widgetOptions() : [card.icon]
+      options: card.widgetChoices
       onChanged: function(value) { if (value !== card.icon && card.save({ icon: value })) card.close() }
     }
 
@@ -146,10 +168,10 @@ PopupCard {
     }
 
     Repeater {
-      model: card.isTray && card.hiddenStore ? OpenApps.withoutKey(card.hiddenStore.keys.concat(card.manualHidden || []), "") : []
+      model: card.isTray && card.hiddenStore ? OpenApps.withoutKey(card.hiddenStore.keys.concat(card.hiddenManual), "") : []
       delegate: Item {
         required property var modelData
-        readonly property bool manual: (card.manualHidden || []).indexOf(modelData) !== -1
+        readonly property bool manual: card.hiddenManual.indexOf(modelData) !== -1
         readonly property var app: card.apps.filter(function(a) { return String(a.desktopId) === modelData })[0]
         width: column.width
         height: Math.max(name.implicitHeight, showButton.implicitHeight)

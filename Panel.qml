@@ -287,7 +287,7 @@ Item {
       enabled: root.openAppsOn
       limit: OpenApps.clampLimit(root.setting("openAppsLimit", 6))
       showTerminals: root.setting("showTerminals", false) === true
-      manualHidden: root.setting("hiddenApps", [])
+      manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
       trayKeys: trayAdapter.shownKeys
     }
   }
@@ -322,7 +322,11 @@ Item {
     z: 10
     acceptedButtons: Qt.MiddleButton
     onPressed: function(mouse) {
-      if (root.hostUsesMiddle && !(mouse.modifiers & Qt.ShiftModifier)) {
+      var shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
+      // The hosted tray uses plain middle-click itself (secondary activate); only the
+      // open-apps row, past the tray, opens the card without Shift.
+      var overHosted = root.adapter === "tray" && (root.verticalBar ? mouse.y < root.hostedHeight : mouse.x < root.hostedWidth)
+      if (!shift && (root.hostUsesMiddle || overHosted)) {
         mouse.accepted = false
         return
       }
@@ -339,6 +343,6 @@ Item {
     settings: root.settings
     hiddenStore: openRow.hiddenStore
     apps: openRow.apps
-    manualHidden: root.setting("hiddenApps", [])
+    manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
   }
 }

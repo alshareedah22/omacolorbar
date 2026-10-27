@@ -71,3 +71,36 @@ test("no Array.from or codePointAt", () => {
   const src = require("fs").readFileSync(require("path").join(__dirname, "..", "ShellEntry.js"), "utf8")
   assert.ok(src.indexOf("Array.from") === -1 && src.indexOf("codePointAt") === -1)
 })
+
+test("planSave: next text for a change to one copy", () => {
+  const raw = S.serialize(cfg())
+  const plan = S.planSave(raw, "omarchy.menu", { menuLogo: "Arch" })
+  assert.strictEqual(JSON.parse(plan.next).bar.layout.left[0].menuLogo, "Arch")
+  assert.strictEqual(JSON.parse(plan.next).bar.layout.right[0].openAppsLimit, 4)
+})
+
+test("planSave: unchanged when the text would be identical", () => {
+  const raw = S.serialize(cfg())
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(S.planSave(raw, "omarchy.menu", { icon: "omarchy.menu" }))), { unchanged: true })
+})
+
+test("planSave: invalid JSON and missing layout are 'invalid'", () => {
+  assert.strictEqual(S.planSave("{nope", "omarchy.menu", {}).error, "invalid")
+  assert.strictEqual(S.planSave("{}", "omarchy.menu", {}).error, "invalid")
+})
+
+test("planSave: no copy with that icon is 'none'", () => {
+  assert.strictEqual(S.planSave(S.serialize(cfg()), "omarchy.audio", {}).error, "none")
+})
+
+test("planSave: two copies with the same icon are 'many'", () => {
+  const c = cfg()
+  c.bar.layout.center.push({ id: "blackcode.omacolorbar", icon: "omarchy.menu" })
+  assert.strictEqual(S.planSave(S.serialize(c), "omarchy.menu", {}).error, "many")
+})
+
+test("planSave: switching to an icon another copy uses is 'used'", () => {
+  const raw = S.serialize(cfg())
+  assert.strictEqual(S.planSave(raw, "omarchy.menu", { icon: "omarchy.tray" }).error, "used")
+  assert.ok(S.planSave(raw, "omarchy.menu", { icon: "omarchy.audio" }).next)
+})

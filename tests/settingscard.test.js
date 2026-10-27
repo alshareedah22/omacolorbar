@@ -11,7 +11,7 @@ test("the card never uses the shell's inline save", () => {
 
 test("the card writes through ShellEntry with a backup and atomic writes", () => {
   const src = read("SettingsCard.qml")
-  for (const s of ["ShellEntry.findEntry", "ShellEntry.withEntryKeys", "ShellEntry.serialize",
+  for (const s of ["ShellEntry.planSave", "blockAllReads: true", "preload: false",
                    "shell.json.omacolorbar-settings-backup", "atomicWrites: true", "waitForJob"])
     assert.ok(src.indexOf(s) !== -1, s)
   assert.ok(src.indexOf("shell.json.omacolorbar-backup\"") === -1, "never touches the swap backup")
