@@ -458,7 +458,7 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       x: root.chevronX
       onPressed: function(button) {
-        if (button === Qt.RightButton && root.tray && "managePopupOpen" in root.tray)
+        if (button === Qt.RightButton && root.tray && root.tray.visible && "managePopupOpen" in root.tray)
           root.tray.managePopupOpen = !root.tray.managePopupOpen
       }
       text: "\uf053"

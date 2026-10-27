@@ -205,6 +205,8 @@ poster updated. Push and the marketplace step need the user's yes.
 
 ## Change 2026-10-27: open apps live in the tray drawer (user decision)
 
+(The expanded order and the `<` described here were superseded by "Order change 2026-10-27" below.)
+
 User request after seeing the row live: "all apps open will be placed inside the tray, not out".
 The user chose: open apps hide behind the tray's `<` together with the tray's drawer apps (e.g.
 Claude), slide out when the tray is hovered, and hide again. This replaces "drawn right after
