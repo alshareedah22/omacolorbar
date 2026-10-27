@@ -120,13 +120,16 @@ Item {
   }
 
   // PopupCard closes its owner on an outside click.
+  // True while any card over the row is open (its own, or the copy's settings card).
+  property bool settingsOpen: false
+  readonly property bool cardOpen: menuOpen || moreOpen || settingsOpen
+
   function close() { menuOpen = false; moreOpen = false }
 
   function hideIconTooltips() {
     for (var i = 0; i < iconRepeater.count; i++) bar.hideTooltip(iconRepeater.itemAt(i))
   }
-  onMenuOpenChanged: if (menuOpen && bar) { bar.hideTooltip(more); hideIconTooltips() }
-  onMoreOpenChanged: if (moreOpen && bar) { bar.hideTooltip(more); hideIconTooltips() }
+  onCardOpenChanged: if (cardOpen && bar) { bar.hideTooltip(more); hideIconTooltips() }
 
   onEnabledChanged: if (enabled) { readApps(); refresh() }
   onHiddenAllChanged: refresh()
@@ -158,7 +161,7 @@ Item {
     width: row.slot
     height: row.slot
     // No tooltip while a card is open: it would sit on top of the card and take its clicks.
-    readonly property bool tooltipHovered: visible && iconMouse.containsMouse && !row.menuOpen && !row.moreOpen
+    readonly property bool tooltipHovered: visible && iconMouse.containsMouse && !row.cardOpen
 
     Image {
       id: image
@@ -233,7 +236,7 @@ Item {
       visible: row.overflow.length > 0
       width: visible ? row.slot : 0
       height: visible ? row.slot : 0
-      readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.menuOpen && !row.moreOpen
+      readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.cardOpen
       Text {
         anchors.centerIn: parent
         text: "+" + row.overflow.length

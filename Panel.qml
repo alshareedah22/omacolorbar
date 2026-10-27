@@ -289,6 +289,7 @@ Item {
       showTerminals: root.setting("showTerminals", false) === true
       manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
       trayKeys: trayAdapter.shownKeys
+      settingsOpen: settingsCard.open
     }
   }
 
