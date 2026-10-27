@@ -45,7 +45,11 @@ The built-in widget's own settings (for example `showPercentage` on power) live 
 ~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar restore
 ```
 
-This puts the backup back exactly. You can also set the entries back by hand: replace `{"id":"blackcode.omacolorbar","icon":"omarchy.audio"}` with `{"id":"omarchy.audio"}`.
+This puts the backup back and removes it. Any changes made since the swap, including settings Omarchy saved into `plugins[]`, are replaced by the backup.
+
+`colorbar swap` refuses to run while a backup exists ("run restore first, or swap --force"). `swap --force` keeps the existing backup, which holds your original, and swaps the current file; it never overwrites the original.
+
+You can also set the entries back by hand: replace `{"id":"blackcode.omacolorbar","icon":"omarchy.audio"}` with `{"id":"omarchy.audio"}`.
 
 ## When Omarchy changes
 
