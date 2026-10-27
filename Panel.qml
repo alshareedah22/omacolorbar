@@ -258,6 +258,7 @@ Item {
     Loader {
       id: loader
       width: root.hostedWidth
+      x: root.verticalBar ? (parent.width - width) / 2 : 0
       height: root.verticalBar ? root.hostedHeight : parent.height
       active: root.problem === ""
       sourceComponent: root.hostComponent
@@ -279,7 +280,7 @@ Item {
 
     OpenAppsRow {
       id: openRow
-      x: root.verticalBar ? 0 : root.hostedWidth + root.rowGap
+      x: root.verticalBar ? (parent.width - width) / 2 : root.hostedWidth + root.rowGap
       y: root.verticalBar ? root.hostedHeight + root.rowGap : 0
       height: root.verticalBar ? implicitHeight : parent.height
       bar: root.bar

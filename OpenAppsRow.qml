@@ -22,7 +22,7 @@ Item {
   readonly property bool vertical: bar ? bar.vertical === true : false
   readonly property int slot: Style.bar.statusSlot
   readonly property int iconSize: Style.bar.iconCanvas
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color foreground: bar ? bar.foreground : Color.popups.text
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   property var apps: []           // [{name, icon, wmClass, desktopId, terminal}]
@@ -53,6 +53,7 @@ Item {
   }
 
   function readApps() {
+    if (!row.enabled) return
     var values = DesktopEntries.applications.values, out = []
     for (var i = 0; i < values.length; i++) {
       var e = values[i]
@@ -68,7 +69,7 @@ Item {
   }
 
   function markUsed(top) {
-    if (!top) return
+    if (!top || !row.enabled) return
     var t = usedTops.filter(function(x) { return x }), s = []
     for (var i = 0; i < usedTops.length; i++) if (usedTops[i]) s.push(usedSeq[i])
     var at = t.indexOf(top)
@@ -80,6 +81,7 @@ Item {
   }
 
   function refresh() {
+    if (!row.enabled) return
     var list = ToplevelManager.toplevels ? ToplevelManager.toplevels.values : []
     var wins = [], objs = [], seen = seenSeq, counter = seenCounter
     for (var i = 0; i < list.length; i++) {
@@ -94,13 +96,17 @@ Item {
     seenCounter = counter
     tops = objs
     windows = wins
-    groups = OpenApps.group(wins, { hidden: hiddenAll, trayKeys: trayKeys, showTerminals: showTerminals })
-    var parts = OpenApps.split(groups, limit)
-    shown = parts.shown
-    overflow = parts.overflow
+    var next = OpenApps.group(wins, { hidden: hiddenAll, trayKeys: trayKeys, showTerminals: showTerminals })
+    var parts = OpenApps.split(next, limit)
+    // Only replace what changed, so the icons are not rebuilt on every focus change.
+    if (JSON.stringify(next) !== JSON.stringify(groups)) groups = next
+    if (JSON.stringify(parts.shown) !== JSON.stringify(shown)) shown = parts.shown
+    if (JSON.stringify(parts.overflow) !== JSON.stringify(overflow)) overflow = parts.overflow
   }
 
-  function focusApp(group) {
+  function focusApp(stale) {
+    var group = stale
+    for (var i = 0; i < groups.length; i++) if (groups[i].key === stale.key) group = groups[i]
     var idx = OpenApps.nextWindow(group, windows, tops.indexOf(ToplevelManager.activeToplevel))
     if (tops[idx]) tops[idx].activate()
   }
@@ -112,6 +118,7 @@ Item {
   // PopupCard closes its owner on an outside click.
   function close() { menuOpen = false; moreOpen = false }
 
+  onEnabledChanged: if (enabled) { readApps(); refresh() }
   onHiddenAllChanged: refresh()
   onTrayKeysChanged: refresh()
   onLimitChanged: refresh()
@@ -139,13 +146,18 @@ Item {
     required property var group
     width: row.slot
     height: row.slot
+    readonly property bool tooltipHovered: visible && iconMouse.containsMouse
 
     Image {
       id: image
+      property bool failed: false
+      readonly property string wanted: row.sourceFor(appIcon.group.icon)
+      onWantedChanged: failed = false
+      onStatusChanged: if (status === Image.Error) failed = true
       anchors.centerIn: parent
       width: row.iconSize
       height: row.iconSize
-      source: status === Image.Error || row.sourceFor(appIcon.group.icon) === "" ? Qt.resolvedUrl("icons/app.svg") : row.sourceFor(appIcon.group.icon)
+      source: failed || wanted === "" ? Qt.resolvedUrl("icons/app.svg") : wanted
       sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
       sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
       fillMode: Image.PreserveAspectFit
@@ -159,12 +171,12 @@ Item {
       width: Math.max(height, count.implicitWidth + Style.space(4))
       height: Style.space(10)
       radius: height / 2
-      color: Color.popups ? Color.popups.border : row.foreground
+      color: Color.popups.border
       Text {
         id: count
         anchors.centerIn: parent
         text: String(appIcon.group.windows.length)
-        color: Color.background
+        color: Color.popups.background
         font.family: row.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -172,6 +184,7 @@ Item {
     }
 
     MouseArea {
+      id: iconMouse
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton
       hoverEnabled: true
@@ -182,6 +195,7 @@ Item {
         if (mouse.button === Qt.RightButton) {
           row.menuGroup = appIcon.group
           menuCard.anchorTarget = appIcon
+          row.moreOpen = false
           row.menuOpen = true
         } else {
           row.focusApp(appIcon.group)
@@ -206,6 +220,7 @@ Item {
       visible: row.overflow.length > 0
       width: visible ? row.slot : 0
       height: visible ? row.slot : 0
+      readonly property bool tooltipHovered: visible && moreMouse.containsMouse
       Text {
         anchors.centerIn: parent
         text: "+" + row.overflow.length
@@ -215,6 +230,7 @@ Item {
         font.bold: true
       }
       MouseArea {
+        id: moreMouse
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
@@ -225,8 +241,10 @@ Item {
           if (mouse.button === Qt.RightButton) {
             row.menuGroup = null
             menuCard.anchorTarget = more
+            row.moreOpen = false
             row.menuOpen = true
           } else {
+            row.menuOpen = false
             row.moreOpen = !row.moreOpen
           }
         }
@@ -259,9 +277,14 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(8)
             Image {
+              id: listImage
+              property bool failed: false
+              readonly property string wanted: row.sourceFor(modelData.icon)
+              onWantedChanged: failed = false
+              onStatusChanged: if (status === Image.Error) failed = true
               width: row.iconSize
               height: row.iconSize
-              source: status === Image.Error || row.sourceFor(modelData.icon) === "" ? Qt.resolvedUrl("icons/app.svg") : row.sourceFor(modelData.icon)
+              source: failed || wanted === "" ? Qt.resolvedUrl("icons/app.svg") : wanted
               sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
               sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
               fillMode: Image.PreserveAspectFit
