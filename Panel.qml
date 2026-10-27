@@ -6,6 +6,7 @@ import qs.Commons
 import qs.Ui
 import "Icons.js" as Icons
 import "Levels.js" as Levels
+import "OpenApps.js" as OpenApps
 
 // One copy hosts one built-in bar widget, built from the shell's widget registry the way
 // the bar builds it, and draws a color icon in place of that widget's glyph. Clicks,
@@ -160,6 +161,7 @@ Item {
   }
 
   TrayAdapter {
+    id: trayAdapter
     host: loader.item
     enabled: root.adapter === "tray"
   }
@@ -237,17 +239,26 @@ Item {
     }
   }
 
+  readonly property bool openAppsOn: adapter === "tray" && setting("openApps", true) === true
+  readonly property real hostedWidth: loader.item && loader.item.visible ? loader.item.implicitWidth : 0
+  readonly property real hostedHeight: loader.item && loader.item.visible ? loader.item.implicitHeight : 0
+  readonly property real rowGap: openRow.visible && (hostedWidth > 0 || hostedHeight > 0) ? Style.space(4) : 0
+  readonly property bool verticalBar: bar ? bar.vertical === true : false
+
   Item {
     id: slot
     visible: root.problem === ""
-    implicitWidth: loader.item && loader.item.visible ? loader.item.implicitWidth : 0
-    implicitHeight: loader.item && loader.item.visible ? loader.item.implicitHeight : 0
+    implicitWidth: root.verticalBar ? Math.max(root.hostedWidth, openRow.visible ? openRow.implicitWidth : 0)
+      : root.hostedWidth + root.rowGap + (openRow.visible ? openRow.implicitWidth : 0)
+    implicitHeight: root.verticalBar ? root.hostedHeight + root.rowGap + (openRow.visible ? openRow.implicitHeight : 0)
+      : Math.max(root.hostedHeight, openRow.visible ? openRow.implicitHeight : 0)
     width: implicitWidth
     height: implicitHeight
 
     Loader {
       id: loader
-      anchors.fill: parent
+      width: root.hostedWidth
+      height: root.verticalBar ? root.hostedHeight : parent.height
       active: root.problem === ""
       sourceComponent: root.hostComponent
       onLoaded: {
@@ -264,6 +275,19 @@ Item {
           if (root.adapter === "button") root.attach()
         })
       }
+    }
+
+    OpenAppsRow {
+      id: openRow
+      x: root.verticalBar ? 0 : root.hostedWidth + root.rowGap
+      y: root.verticalBar ? root.hostedHeight + root.rowGap : 0
+      height: root.verticalBar ? implicitHeight : parent.height
+      bar: root.bar
+      enabled: root.openAppsOn
+      limit: OpenApps.clampLimit(root.setting("openAppsLimit", 6))
+      showTerminals: root.setting("showTerminals", false) === true
+      manualHidden: root.setting("hiddenApps", [])
+      trayKeys: trayAdapter.shownKeys
     }
   }
 

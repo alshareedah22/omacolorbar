@@ -24,3 +24,17 @@ test("settings schema has icon and menuLogo with their defaults", () => {
 test("version 1.1.0", () => {
   assert.strictEqual(manifest.version, "1.1.0")
 })
+
+test("open-apps settings in the schema with their defaults", () => {
+  const schema = Object.fromEntries(manifest.barWidget.schema.map(s => [s.key, s]))
+  assert.strictEqual(manifest.barWidget.defaults.openApps, true)
+  assert.strictEqual(manifest.barWidget.defaults.openAppsLimit, 6)
+  assert.deepStrictEqual(manifest.barWidget.defaults.hiddenApps, [])
+  assert.strictEqual(manifest.barWidget.defaults.showTerminals, false)
+  assert.strictEqual(schema.openApps.type, "boolean")
+  assert.strictEqual(schema.openAppsLimit.type, "integer")
+  assert.strictEqual(schema.openAppsLimit.min, 1)
+  assert.strictEqual(schema.openAppsLimit.max, 20)
+  assert.strictEqual(schema.hiddenApps.type, "multiselect")
+  assert.strictEqual(schema.showTerminals.type, "boolean")
+})

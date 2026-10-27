@@ -22,7 +22,11 @@
     "defaultSection": "right",
     "defaults": {
       "icon": "omarchy.network",
-      "menuLogo": "Omarchy"
+      "menuLogo": "Omarchy",
+      "openApps": true,
+      "openAppsLimit": 6,
+      "hiddenApps": [],
+      "showTerminals": false
     },
     "schema": [
       {
@@ -56,6 +60,39 @@
         ],
         "defaultValue": "Omarchy",
         "description": "For the copy set to omarchy.menu: the Omarchy logo in green, or the Arch Linux logo in its official blue."
+      },
+      {
+        "key": "openApps",
+        "type": "boolean",
+        "label": "Open apps",
+        "defaultValue": true,
+        "description": "For the copy set to omarchy.tray: show a color icon for each open app next to the tray."
+      },
+      {
+        "key": "openAppsLimit",
+        "type": "integer",
+        "label": "Open apps limit",
+        "min": 1,
+        "max": 20,
+        "step": 1,
+        "defaultValue": 6,
+        "description": "For the copy set to omarchy.tray: how many apps show before the rest go behind +N."
+      },
+      {
+        "key": "hiddenApps",
+        "type": "multiselect",
+        "label": "Hidden apps",
+        "options": [],
+        "defaultValue": [],
+        "noSelectionText": "None",
+        "description": "For the copy set to omarchy.tray: desktop entry ids to keep out of the row. Apps hidden with a right-click are stored separately and not listed here."
+      },
+      {
+        "key": "showTerminals",
+        "type": "boolean",
+        "label": "Show terminals",
+        "defaultValue": false,
+        "description": "For the copy set to omarchy.tray: also show terminal apps in the open-apps row."
       }
     ]
   }

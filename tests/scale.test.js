@@ -5,7 +5,7 @@ const path = require("path")
 
 // QML files OmaColorBar owns. Every size must come from Omarchy's Style tokens so the bar
 // scales with the theme, and every Image must render at the screen's pixel density.
-const FILES = ["Panel.qml", "TrayAdapter.qml", "HiddenStore.qml"]
+const FILES = ["Panel.qml", "TrayAdapter.qml", "HiddenStore.qml", "OpenAppsRow.qml"]
 
 // Size properties whose value must be a Style token (or a parent/layout expression), not a
 // literal. A value counts as a literal when it starts with a number; the bare value 0 is allowed.
