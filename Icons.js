@@ -41,9 +41,21 @@ function isPrivateUse(cp) { return (cp >= 0xe000 && cp <= 0xf8ff) || cp >= 0xf00
 
 // The glyph is the last private-use code point; anything else ("73% ") is a label.
 function split(text) {
-  var chars = Array.from(String(text || ""))
+  // Not Array.from: QML's JS engine splits a string into UTF-16 units, so a code point
+  // above U+FFFF (most Nerd Font glyphs here) would arrive as two surrogates.
+  var str = String(text || "")
+  var chars = []
+  for (var u = 0; u < str.length; u++) {
+    var hi = str.charCodeAt(u)
+    var lo = u + 1 < str.length ? str.charCodeAt(u + 1) : 0
+    if (hi >= 0xd800 && hi <= 0xdbff && lo >= 0xdc00 && lo <= 0xdfff) {
+      chars.push(str.charAt(u) + str.charAt(u + 1))
+      u++
+    } else chars.push(str.charAt(u))
+  }
   for (var i = chars.length - 1; i >= 0; i--) {
-    var cp = chars[i].codePointAt(0)
+    var c = chars[i]
+    var cp = c.length === 2 ? (c.charCodeAt(0) - 0xd800) * 0x400 + (c.charCodeAt(1) - 0xdc00) + 0x10000 : c.charCodeAt(0)
     if (isPrivateUse(cp))
       return { key: cp.toString(16), label: (chars.slice(0, i).join("") + chars.slice(i + 1).join("")).trim() }
   }

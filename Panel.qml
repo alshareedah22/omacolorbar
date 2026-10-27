@@ -170,8 +170,8 @@ Item {
     id: glyphOverlay
     Image {
       anchors.centerIn: parent
-      width: Math.round(parent.height * 0.5)
-      height: width
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
       source: root.drawingSource
       sourceSize.width: width * 2
       sourceSize.height: height * 2
