@@ -232,3 +232,19 @@ the hosted tray, always visible" for horizontal bars.
   vertical drawer slides on y with a rotated chevron; the user's bar is horizontal, so this
   release keeps the vertical layout as built. Cost if wrong: vertical-bar users see open apps
   outside the drawer.
+
+### Order change 2026-10-27 (user decision): open apps right of `<`, before the tray apps
+
+User: "open app should [be] inside the tray, placed before `<`, not after"; asked to choose, they picked
+`[<][open apps][+N][tray drawer apps][pinned]` when expanded, `[<][pinned]` collapsed.
+
+- Omarchy's `<` only travels the tray's own drawer width, so OmaColorBar draws the single `<`
+  for the whole group (same glyph and size) and hides the hosted tray's `<` (found in the hosted
+  tree, `visible: false`). Right-click on our `<` toggles the tray's "Tray icons" panel
+  (`managePopupOpen`) like Omarchy's.
+- Geometry (tray copy, horizontal): area width R (open apps) + chevron C to the left of the hosted
+  tray; D = tray drawerExtent; p = reveal. Our `<` at x = (R + D)(1 - p) (collapsed it sits exactly
+  where the tray's hidden `<` was; expanded at 0). Open apps in a clip at x = chevron + C, width R*p,
+  so they end exactly where the tray's drawer apps begin.
+- Everything else in the drawer section still holds (hover, keep-open, collapse, middle-click
+  regions now: over the tray apps/pinned items → tray; over our `<` and open apps → card).
