@@ -8,7 +8,7 @@ var PLUGIN_ID = "blackcode.omacolorbar"
 
 var SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.audio",
   "omarchy.microphone", "omarchy.power", "omarchy.monitor", "omarchy.system-update",
-  "omarchy.agents", "omarchy.tailscale",
+  "omarchy.agents", "omarchy.tailscale", "omarchy.tray",
   "omarchy.indicators", "omarchy.weather"]
 
 function svg(name) { return { kind: "svg", name: name } }

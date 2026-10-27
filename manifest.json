@@ -40,6 +40,7 @@
           "omarchy.system-update",
           "omarchy.agents",
           "omarchy.tailscale",
+          "omarchy.tray",
           "omarchy.indicators",
           "omarchy.weather"
         ],

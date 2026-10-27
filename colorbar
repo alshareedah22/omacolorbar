@@ -16,7 +16,7 @@ import tempfile
 PLUGIN = "blackcode.omacolorbar"
 SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.audio",
              "omarchy.microphone", "omarchy.power", "omarchy.monitor", "omarchy.system-update",
-             "omarchy.agents", "omarchy.tailscale",
+             "omarchy.agents", "omarchy.tailscale", "omarchy.tray",
              "omarchy.indicators", "omarchy.weather"]
 DEFAULT = os.path.expanduser("~/.config/omarchy/shell.json")
 SUFFIX = ".omacolorbar-backup"

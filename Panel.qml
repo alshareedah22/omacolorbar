@@ -194,6 +194,11 @@ Item {
     onTriggered: root.scanIndicators()
   }
 
+  TrayAdapter {
+    host: loader.item
+    enabled: root.adapter === "tray"
+  }
+
   FileView {
     id: shellView
     path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
