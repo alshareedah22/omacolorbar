@@ -212,7 +212,8 @@ the hosted tray, always visible" for horizontal bars.
 
 - Layout of the tray copy (horizontal bar), left to right: open-apps drawer area, then the
   hosted Omarchy tray (its own drawer, `<`, pinned items). Expanded it reads
-  `[open apps][+N][tray drawer apps][<][pinned]`.
+  `[open apps][+N][<][tray drawer apps][pinned]` (Omarchy moves its `<` to the left edge of
+  the tray as its drawer opens).
 - Collapsed, the open-apps area is empty space, like the tray's own collapsed drawer
   (Omarchy reserves the drawer width and masks it). Nothing in it takes clicks or hover.
 - Reveal follows the hosted tray's `revealProgress` (same 600 ms OutCubic animation), so open

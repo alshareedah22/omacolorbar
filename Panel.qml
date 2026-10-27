@@ -287,14 +287,16 @@ Item {
 
   // Leaving the whole copy, with no card of the row (or the settings card) open, collapses.
   function settleDrawer() {
-    if (keepOpen.hovered || holdOpen) return
-    if (trayChevron && tray.expanded === true) tray.expanded = false
+    if (!drawerMode || keepOpen.hovered || holdOpen) return
+    // Also when the tray just lost its `<`: an expanded flag we set must not linger.
+    if (tray && tray.expanded === true) tray.expanded = false
     ownExpanded = false
   }
 
   onOverRevealedChanged: if (overRevealed) openDrawer()
   onHoldOpenChanged: if (!holdOpen) settleDrawer()
   onOwnChevronChanged: if (!ownChevron) ownExpanded = false
+  onTrayChevronChanged: if (!trayChevron) settleDrawer()
   // The last open app went away (or open apps were turned off) while the drawer was held open.
   onDrawerActiveChanged: if (!drawerActive) settleDrawer()
 
