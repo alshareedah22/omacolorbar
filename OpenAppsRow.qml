@@ -129,6 +129,7 @@ Item {
   onShowTerminalsChanged: refresh()
   Component.onCompleted: readApps()
 
+  readonly property alias hiddenStore: store
   HiddenStore { id: store }
 
   Connections {

@@ -308,4 +308,37 @@ Item {
       }
     }
   }
+
+  // Middle-click opens this copy's settings card. Microphone and agents use middle-click
+  // themselves, so on those two the card needs Shift+middle-click and plain middle-click
+  // goes to the widget. Only the middle button is taken: left/right clicks, scroll and
+  // hover still reach the hosted widget.
+  readonly property bool hostUsesMiddle: hostId === "omarchy.microphone" || hostId === "omarchy.agents"
+
+  function close() { settingsCard.open = false }
+
+  MouseArea {
+    anchors.fill: parent
+    z: 10
+    acceptedButtons: Qt.MiddleButton
+    onPressed: function(mouse) {
+      if (root.hostUsesMiddle && !(mouse.modifiers & Qt.ShiftModifier)) {
+        mouse.accepted = false
+        return
+      }
+      settingsCard.open = !settingsCard.open
+    }
+  }
+
+  SettingsCard {
+    id: settingsCard
+    anchorItem: root
+    bar: root.bar
+    owner: root
+    icon: root.hostId
+    settings: root.settings
+    hiddenStore: openRow.hiddenStore
+    apps: openRow.apps
+    manualHidden: root.setting("hiddenApps", [])
+  }
 }
