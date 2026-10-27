@@ -1,6 +1,6 @@
 # OmaColorBar: color icons for Omarchy's bar
 
-Color gradient icons for the built-in widgets in the Omarchy bar. Each icon hosts the real Omarchy widget, so clicks and popups stay Omarchy's own. Its settings are read from `plugins[]` in `shell.json` (see Known limits).
+Color icons for Omarchy's built-in bar widgets, with color drawings for weather, and tray apps that each show their own installed app icon. Each icon hosts the real Omarchy widget, so clicks and popups stay Omarchy's own. Its settings are read from `plugins[]` in `shell.json` (see Known limits).
 
 ![OmaColorBar: color icons in the Omarchy bar](preview.png)
 

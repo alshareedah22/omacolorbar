@@ -4,6 +4,20 @@ Date: 2026-10-27 · Status: design approved in chat, awaiting spec review
 Builds on: `2026-10-27-omacolorbar-design.md` (1.0.0). Everything there still holds
 unless this document says otherwise.
 
+## Scope changes during implementation (2026-10-27)
+
+The sections below are the historical design. What shipped differs in three ways:
+
+- Indicators were dropped from 1.1.0. When another plugin hosts `omarchy.indicators`, Stay awake,
+  Night light and Do not disturb cannot reach Omarchy's idle, nightlight and notifications services
+  (`PluginShellApi.firstPartyServiceFor` returns null for plugins not declared as indicators clones),
+  so they would stay off. The `ind-*` drawings and `Icons.indicatorDrawing` are kept for a later
+  indicators plugin.
+- The tray ships with a known limit: Pin/Hide in the tray's manage panel has no effect when hosted,
+  because the tray saves through `updateEntryInline("omarchy.tray")`, which the shell does not apply
+  for another plugin. Set pinned/hidden in `plugins[]` instead.
+- The indicator adapter is not built. The tray adapter lives in `TrayAdapter.qml`.
+
 ## Goal
 
 Extend OmaColorBar to three more of Omarchy's bar widgets:

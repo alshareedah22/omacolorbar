@@ -78,6 +78,14 @@ test("within a rule the longest matching key wins, regardless of list order", ()
   assert.strictEqual(A.matchApp(tray, [D2, D1]), "d2")
 })
 
+test("short desktop ids never match a title word or whole title", () => {
+  const APPS = [
+    { name: "X", icon: "x-web", wmClass: "", desktopId: "x" },
+    { name: "HEY", icon: "hey-web", wmClass: "", desktopId: "com.example.hey" }
+  ]
+  assert.strictEqual(A.matchApp({ id: "generic_tray", title: "Say hey to x", tooltipTitle: "" }, APPS), "")
+})
+
 test("Apps.js avoids Array.from and codePointAt", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "Apps.js"), "utf8").replace(/\/\/.*$/gm, "")
   assert.ok(!/\b(Array\.from|codePointAt)\b/.test(src))

@@ -66,7 +66,9 @@ function matchApp(tray, apps) {
       for (var c = 0; c < cands.length; c++) {
         var d = cands[c]
         if (d === "") continue
-        if (contains(key, d) || d === title) best = Math.max(best, d.length)
+        if (contains(key, d)) best = Math.max(best, d.length)
+        if (d.length < 4) continue  // too short to trust against free-text titles ("x", "hey")
+        if (d === title) best = Math.max(best, d.length)
         for (var w = 0; w < words.length; w++)
           if (words[w] !== "" && normalize(words[w]) === d) best = Math.max(best, d.length)
       }
