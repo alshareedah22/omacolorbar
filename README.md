@@ -57,16 +57,16 @@ Omarchy's bar weather shows only the condition icon (no temperature), so the dra
 
 ## Open apps
 
-The `omarchy.tray` copy shows one color icon for each open app, after the hosted tray.
+The `omarchy.tray` copy shows one color icon for each open app, inside the tray drawer. They hide behind the tray's `<` together with the tray apps (for example Claude). Hover the tray and they slide out with the tray apps; move away and they hide again. The drawer stays open while the pointer is on the open apps or one of their menus is open. If no app has a tray icon, OmaColorBar shows its own `<` for the open apps. On a vertical bar the open apps stay visible below the tray.
 
 - One icon per app. At 2 or more windows of the same app, the icon has a count badge.
 - Click focuses the app's latest window. Click again to cycle through its windows.
 - Apps beyond `openAppsLimit` (default 6) go behind `+N`. Click `+N` for a list and click an app in it to focus it.
-- Right-click an icon and choose "Hide ... from bar" to hide that app. Right-click an icon or `+N` and open "Hidden apps" to show a hidden app again.
+- Right-click an icon and choose "Hide ... from bar" to hide that app. Right-click an icon or `+N` to see "Hidden apps" and click one to show it again. Right-click the same icon again, or click outside the bar, to close the menu.
 
 Left out on purpose:
 
-- Terminals (apps with the desktop category `TerminalEmulator`), unless `showTerminals` is on. Terminals are usually open all day and would fill the row.
+- Terminals (apps with the desktop category `TerminalEmulator`), unless `showTerminals` is on. Terminals are usually open all day and would fill the drawer.
 - Apps the tray already shows (for example Claude), so they appear once.
 - Windows whose app id matches no installed app, because there is no icon to show for them.
 
@@ -86,7 +86,7 @@ Rows on the card:
 - Open apps, Apps shown, Show terminals, Hidden apps (tray copy). Each hidden app has a Show button.
 - Open shell.json.
 
-Changes save at once, into that copy's own entry in `~/.config/omarchy/shell.json`. Only that entry changes. Before each save, the file is copied to `~/.config/omarchy/shell.json.omacolorbar-settings-backup`. This is one rolling copy, separate from the `colorbar swap` backup. If the copy cannot be found uniquely in the file, or the chosen widget is already used by another copy, nothing is written and the card says why. Changes show on the bar within seconds, with no restart.
+Changes save at once, into that copy's own entry in `~/.config/omarchy/shell.json`. Only that entry changes. Before each save, the file is copied to `~/.config/omarchy/shell.json.omacolorbar-settings-backup`. This is one rolling copy, separate from the `colorbar swap` backup. If the copy cannot be found uniquely in the file, or the chosen widget is already used by another copy, nothing is written and the card says why. Changes show on the bar within seconds, with no restart. The card closes after each change, because Omarchy rebuilds the bar when a widget that appears more than once changes its settings; middle-click again for the next change.
 
 ## Settings
 
