@@ -22,7 +22,7 @@ can be hidden and shown again from a right-click menu.
 | Overflow | `+N` button opening a list of the extra apps |
 | Hide/show | Right-click an icon → "Hide from bar"; a "Hidden apps" submenu unhides |
 | Duplicates | An app already shown by the tray (e.g. Claude) is not shown again |
-| Logo choice | Already exists (`"menuLogo": "Arch"` / `"Omarchy"` on the `omarchy.menu` entry in `plugins[]`); README documents it, nothing new is built |
+| Logo choice | Already exists: `"menuLogo": "Arch"` / `"Omarchy"` on the OmaColorBar menu copy's own layout entry (`{"id": "blackcode.omacolorbar", "icon": "omarchy.menu", "menuLogo": "Arch"}`, already in the manifest schema); README documents it, nothing new is built |
 | Window source | Quickshell `ToplevelManager.toplevels` (Wayland foreign-toplevel: `appId`, `title`, `activated`, `activate()`); no Hyprland dispatch |
 
 ## Constraints
@@ -43,7 +43,7 @@ added to the manifest `barWidget` schema and defaults:
 |---|---|---|---|
 | `openApps` | bool | `true` | show open apps next to the tray |
 | `openAppsLimit` | int (1–20) | `6` | icons shown before `+N` |
-| `hiddenApps` | list of strings | `[]` | app keys hidden by the user |
+| `hiddenApps` | list of strings | `[]` | extra app keys to hide, edited by hand (right-click hiding is stored separately, see Hide and show) |
 | `showTerminals` | bool | `false` | also show terminal apps |
 
 The hosted tray's own settings stay in `plugins[]` (`omarchy.tray`), as in 1.1.0.
@@ -77,12 +77,17 @@ The hosted tray's own settings stay in `plugins[]` (`omarchy.tray`), as in 1.1.0
 
 - Right-click an open-app icon → menu: "Hide from bar", and "Hidden apps (N)" with one entry
   per hidden app (click to show again). Right-click on `+N` shows the same "Hidden apps" list.
-- Saving goes through `bar.shell.updateEntryInline(<own entry>, {…hiddenApps})`.
-- **Spike first (plan task 1):** prove on the live bar that OmaColorBar may save its own
-  entry this way and that the value survives `omarchy restart shell`. If it may not, the
-  controller stops and asks the user; the proposed fallback is that right-click hiding
-  lasts for the session and `hiddenApps` in `shell.json` makes it permanent (documented
-  limit, like the tray's Pin/Hide).
+- Planning finding (replaces the spike): `bar.shell.updateEntryInline(own id, …)` rewrites
+  **every** layout entry whose id is `blackcode.omacolorbar` (`shell.qml` `updateEntryInline`
+  loops over all matching entries), so saving from one copy would overwrite every copy on the
+  bar. It is never used.
+- Right-click hides are stored in OmaColorBar's own state file
+  (`Quickshell.statePath("omacolorbar-hidden-apps.json")`, a JSON list of app keys), read at
+  start and written on every hide/unhide. They survive restarts and never touch `shell.json`.
+- Effective hidden set = state file ∪ the `hiddenApps` setting. The "Hidden apps" submenu lists
+  both; entries from `hiddenApps` show "set in shell.json" and cannot be unhidden from the bar.
+- The plan's first task checks live that the state file can be written and read back after
+  `omarchy restart shell`; if it cannot, the controller stops and asks the user.
 
 ## Display scale (user requirement: every icon, every feature, any scale)
 
@@ -116,7 +121,7 @@ Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/St
 | Matched icon empty or fails to load | neutral app glyph |
 | Window closes while its menu or the `+N` list is open | menu/list closes or drops that entry |
 | `ToplevelManager` unavailable | open-apps row empty; tray as in 1.1.0 |
-| Saving hidden apps not allowed | per spike outcome (see Hide and show) |
+| State file unreadable or invalid JSON | treated as an empty list; a warning is logged once |
 
 ## Testing
 
