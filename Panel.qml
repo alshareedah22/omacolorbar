@@ -244,6 +244,12 @@ Item {
       active: root.problem === ""
       sourceComponent: root.hostComponent
       onLoaded: {
+        // A new hosted item (the icon setting changed): forget the old one so attach() starts fresh.
+        attachRetry.stop()
+        root.attachTries = 0
+        root.button = null
+        root.originalIcon = null
+        root.tailscaleState = ""
         root.inject(item)
         // Again on the next frame, as the bar does: some widgets read these while building.
         Qt.callLater(function() { root.inject(loader.item); root.attach() })
