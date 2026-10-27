@@ -52,23 +52,30 @@ Item {
     if (trayIcon.children.length > 1) trayIcon.children[1].visible = Qt.binding(function() { return trayIcon.symbolic })
   }
 
+  // True once the icon was given an app icon (or put back after a load error), so it is not
+  // adapted again; an unmatched icon returns false and is tried again on the next scan.
   function adapt(trayIcon) {
     var data = trayIcon.parent ? trayIcon.parent.modelData : null
-    if (!data) return
+    if (!data) return false
     var source = sourceFor(Apps.matchApp({ id: data.id, title: data.title, tooltipTitle: data.tooltipTitle }, apps))
-    if (source === "") return
+    if (source === "") return false
     var image = trayIcon.children[0]
+    var restored = false
+    function check() {
+      if (restored || image.status !== Image.Error) return
+      restored = true
+      console.warn("[omacolorbar] tray: " + source + " failed to load; using the tray's own image")
+      adapter.restore(trayIcon)
+    }
+    // Connected before the source is set: a missing local file can fail synchronously.
+    image.statusChanged.connect(check)
     image.source = source
     // A symbolic tray icon is drawn tinted through a MultiEffect; show the app icon as is.
     image.visible = true
     image.layer.enabled = false
     if (trayIcon.children.length > 1) trayIcon.children[1].visible = false
-    image.statusChanged.connect(function() {
-      if (image.status === Image.Error) {
-        console.warn("[omacolorbar] tray: " + source + " failed to load; using the tray's own image")
-        adapter.restore(trayIcon)
-      }
-    })
+    check()
+    return true
   }
 
   function scan() {
@@ -76,8 +83,7 @@ Item {
     var found = trayIcons(host, 0, [])
     for (var i = 0; i < found.length; i++) {
       if (live.indexOf(found[i]) !== -1) continue
-      adapt(found[i])
-      live.push(found[i])
+      if (adapt(found[i])) live.push(found[i])
     }
     adapted = live
   }
