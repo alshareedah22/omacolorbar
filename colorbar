@@ -6,7 +6,8 @@
   colorbar restore [shell.json]          put the backup back
 
 A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps the
-settings of a widget that is not in the layout (and saves inline changes)."""
+settings of a widget that is not in the layout. The copy reads them from there; the hosted
+widget cannot save inline changes itself (the shell scopes those saves to the calling plugin)."""
 import json
 import os
 import sys

@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "BlackCode",
   "license": "MIT",
-  "description": "OmaColorBar: color gradient icons for Omarchy's built-in bar widgets. Each copy hosts the real widget, so its popup, clicks and settings stay Omarchy's own",
+  "description": "OmaColorBar: color gradient icons for Omarchy's built-in bar widgets. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
   "kinds": [
     "service",
     "bar-widget"
@@ -42,7 +42,7 @@
           "omarchy.tailscale"
         ],
         "defaultValue": "omarchy.network",
-        "description": "Which built-in widget this copy shows. Its popup, clicks and settings stay Omarchy's own."
+        "description": "Which built-in widget this copy shows. Its popup and clicks stay Omarchy's own."
       },
       {
         "key": "menuLogo",

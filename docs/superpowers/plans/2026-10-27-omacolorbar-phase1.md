@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-27-omacolorbar-design.md`
 
+**Scratch folder:** commands below use `$SCRATCH`; set it once to a scratch folder of your choice (`export SCRATCH=...`).
+
 ## Global Constraints
 
 - Never edit `/usr/share/omarchy/`; never load Omarchy QML files by path. Built-in widgets come only from the registry (`registry.widgets[id].component`).
@@ -689,7 +691,7 @@ Expected: all pass.
 - [ ] **Step 5: Look at the level icons**
 
 ```bash
-S=/tmp/claude-1000/-home-blackcode-desktop/e4b4a5c1-17c8-4668-b6e7-8f0ea7793e33/scratchpad/levels; mkdir -p $S
+S=$SCRATCH/levels; mkdir -p $S
 node -e '
 const L = require("./tests/load")("Levels.js"); const fs = require("fs")
 const all = [...[0,1,2,3,4].map(l => ["wifi"+l, L.wifi(l)]), ...[1,2,3].map(l => ["speaker"+l, L.speaker(l)]),
@@ -915,7 +917,7 @@ Expected: `wrote 19 icons to …/icons`; all tests pass.
 - [ ] **Step 5: Look at them at bar size and large**
 
 ```bash
-S=/tmp/claude-1000/-home-blackcode-desktop/e4b4a5c1-17c8-4668-b6e7-8f0ea7793e33/scratchpad/fixed; mkdir -p $S
+S=$SCRATCH/fixed; mkdir -p $S
 for f in icons/*.svg; do n=$(basename ${f%.svg}); magick -background "#1e1e2e" -density 300 $f -resize 64x64 $S/$n.png; magick -background "#1e1e2e" -density 72 $f -resize 20x20 -scale 300% $S/$n-small.png; done
 magick $S/*[!l].png +append $S/large.png; magick $S/*-small.png +append $S/small.png
 ```
@@ -1204,7 +1206,7 @@ Expected: only `lint-done` (warnings about `qs.*` imports being unresolved are f
 Back up `shell.json`, then put one copy of every phase 1 widget at the start of the right section (the built-ins stay, so each color icon sits beside the original), restart the shell and screenshot:
 
 ```bash
-S=/tmp/claude-1000/-home-blackcode-desktop/e4b4a5c1-17c8-4668-b6e7-8f0ea7793e33/scratchpad
+S=$SCRATCH
 cp ~/.config/omarchy/shell.json $S/shell.json.before-task5
 jq '.bar.layout.right = ([ "omarchy.menu","omarchy.network","omarchy.bluetooth","omarchy.audio","omarchy.microphone","omarchy.power","omarchy.monitor","omarchy.system-update","omarchy.agents","omarchy.tailscale" ] | map({id:"blackcode.omacolorbar", icon:.})) + .bar.layout.right' $S/shell.json.before-task5 > ~/.config/omarchy/shell.json
 omarchy restart shell >/dev/null 2>&1; sleep 9
@@ -1501,7 +1503,7 @@ Ask: "Swap your bar to the color icons now with `colorbar swap`? `colorbar resto
 ```bash
 cd ~/.config/omarchy/plugins/blackcode.omacolorbar && ./colorbar swap
 omarchy restart shell >/dev/null 2>&1; sleep 9
-S=/tmp/claude-1000/-home-blackcode-desktop/e4b4a5c1-17c8-4668-b6e7-8f0ea7793e33/scratchpad
+S=$SCRATCH
 grim -o DP-2 $S/task7.png && grim -o DP-3 $S/task7-left.png
 ```
 Read both. Expected: every built-in icon in color, in its old place, next to the BlackCode plugin icons; the original built-ins are gone from the bar.

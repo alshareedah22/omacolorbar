@@ -72,9 +72,11 @@ The hosted widget's own settings (for example the power widget's `showPercentage
 not kept on the OmaColorBar entry. They live where Omarchy itself keeps settings for a
 plugin that is not in the layout: the `plugins[]` entry with the built-in's id in
 `shell.json`. The copy reads that entry (read-only, `FileView`) and passes it to the
-hosted widget as `settings`. When the hosted widget saves a change with
-`bar.shell.updateEntryInline(<built-in id>, settings)`, the shell finds that `plugins[]`
-entry and updates it, so the change persists without OmaColorBar writing anything.
+hosted widget as `settings`. The user edits that entry, or uses Omarchy's settings UI,
+and the copy re-reads it. Saves made by the hosted widget itself are **not persisted**:
+the shell scopes `bar.shell.updateEntryInline` to the calling plugin (`_updateSettings`
+in `shell.qml`), so a save under the built-in's id is denied and lasts only for the
+session (power's right-click "show percentage", Tailscale's saved choices).
 
 ## Icon catalogue
 
@@ -198,9 +200,16 @@ to the marketplace; 1.1.0 = phase 2.
    picks `tailscale-login` (warning), `tailscale-off` (crossed) or `tailscale-on`. The
    original's bindings keep working because it is still created from the hosted
    widget's component.
-3. **Settings saved by hosted widgets.** Resolved by keeping them in `plugins[]` (see
-   Settings). A wrapper around `bar.shell` was rejected: `updateEntryInline` matches by
+3. **Settings saved by hosted widgets.** Settings are read from `plugins[]` (see
+   Settings). Inline saves from the hosted widget are not persisted because of the
+   shell's plugin scoping (documented as a known limit). A wrapper around `bar.shell` was rejected: `updateEntryInline` matches by
    plugin id, so routing a save to the OmaColorBar entry would overwrite every copy.
+
+4. **Summon is denied.** The shell's `_summon` allows a plugin to summon only targets it
+   owns (or clones with `clonedFrom`), so hosted audio and monitor copies show no
+   on-screen display on scroll, and the network popup's Wi-Fi QR and speed-test actions
+   do nothing; Bluetooth's cross-monitor scan hand-off (`bar.moduleWidgets`) is also
+   unavailable. Verified live for audio. Documented as known limits.
 
 When OmaColorBar has no drawing for the current state, it puts the button's
 **original** `iconComponent` back (`null` for glyph widgets, the widget's own component
