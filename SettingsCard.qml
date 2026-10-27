@@ -69,13 +69,19 @@ PopupCard {
         return false
       }
       if (plan.unchanged) { message = ""; return true }
-      backupFailed = false
-      backup.setText(raw)
-      if (!backup.waitForJob() || backupFailed) { message = "Could not back up shell.json"; return false }
+      // A FileView skips a write whose text equals what it last held. The backup already
+      // holds `raw` when it equals the last backup written; the main file is written through
+      // the reader, which holds `raw` and so always writes `plan.next`.
+      if (raw !== lastBackup) {
+        backupFailed = false
+        backup.setText(raw)
+        if (!backup.waitForJob() || backupFailed) { message = "Could not back up shell.json"; return false }
+        lastBackup = raw
+      }
       writeFailed = false
       message = ""
-      writer.setText(plan.next)
-      if (!writer.waitForJob() || writeFailed) {
+      reader.setText(plan.next)
+      if (!reader.waitForJob() || writeFailed) {
         if (message === "") message = "Could not write shell.json"
         return false
       }
@@ -88,15 +94,15 @@ PopupCard {
   }
 
   // PopupCard's default property only takes visual items, so the file views are properties.
-  property FileView reader: FileView { path: card.shellPath; blockAllReads: true; printErrors: false }
-  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; preload: false; printErrors: false; onSaveFailed: function(error) { card.backupFailed = true } }
-  property FileView writer: FileView {
+  property string lastBackup: ""
+  property FileView reader: FileView {
     path: card.shellPath
+    blockAllReads: true
     atomicWrites: true
-    preload: false
     printErrors: false
     onSaveFailed: function(error) { card.writeFailed = true; card.message = "Could not write shell.json: " + FileViewError.toString(error) }
   }
+  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; preload: false; printErrors: false; onSaveFailed: function(error) { card.backupFailed = true } }
 
   contentWidth: card.fittedContentWidth(Style.space(300))
   contentHeight: card.fittedContentHeight(column.implicitHeight)
