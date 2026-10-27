@@ -66,10 +66,10 @@ PopupCard {
     }
   }
 
-  FileView { id: reader; path: card.shellPath; blockLoading: true; printErrors: false }
-  FileView { id: backup; path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; printErrors: false }
-  FileView {
-    id: writer
+  // PopupCard's default property only takes visual items, so the file views are properties.
+  property FileView reader: FileView { path: card.shellPath; blockLoading: true; printErrors: false }
+  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; printErrors: false }
+  property FileView writer: FileView {
     path: card.shellPath
     atomicWrites: true
     printErrors: false
