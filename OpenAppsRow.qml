@@ -8,7 +8,7 @@ import qs.Ui
 import "Apps.js" as Apps
 import "OpenApps.js" as OpenApps
 
-// Open apps next to the hosted tray: one color icon per app, a count at 2+ windows,
+// Open apps next to the hosted tray (in its drawer on a horizontal bar): one color icon per app, a count at 2+ windows,
 // click focuses (and cycles), extra apps behind +N, right-click hides. Sizes come from
 // Omarchy's Style tokens so the row scales with the theme and the monitor.
 Item {
@@ -43,6 +43,13 @@ Item {
   property var menuGroup: null    // app the right-click card is for (null = the +N card)
   property bool menuOpen: false
   property bool moreOpen: false
+
+  // Drawer mode (horizontal tray copy): the icons are clipped to the row's own area and
+  // slide in from its right edge (the tray side) by `reveal`, 0 = hidden, 1 = shown. While
+  // hidden nothing in the row takes clicks or hover. Off (vertical bar): always shown.
+  property bool drawer: false
+  property real reveal: 1
+  readonly property bool revealed: !drawer || reveal > 0
 
   readonly property var hiddenAll: OpenApps.withoutKey(store.keys.concat(manualHidden || []), "")
 
@@ -219,49 +226,58 @@ Item {
     }
   }
 
-  Grid {
-    id: grid
-    columns: row.vertical ? 1 : row.shown.length + (row.overflow.length > 0 ? 1 : 0)
-    spacing: 0
+  Item {
+    id: clipArea
+    width: row.width
+    height: row.height
+    clip: row.drawer
+    enabled: row.revealed
 
-    Repeater {
-      id: iconRepeater
-      model: row.shown
-      delegate: AppIcon { required property var modelData; group: modelData }
-    }
+    Grid {
+      id: grid
+      x: row.drawer ? grid.implicitWidth * (1 - row.reveal) : 0
+      columns: row.vertical ? 1 : row.shown.length + (row.overflow.length > 0 ? 1 : 0)
+      spacing: 0
 
-    // +N: the apps over the limit.
-    Item {
-      id: more
-      visible: row.overflow.length > 0
-      width: visible ? row.slot : 0
-      height: visible ? row.slot : 0
-      readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.cardOpen
-      Text {
-        anchors.centerIn: parent
-        text: "+" + row.overflow.length
-        color: row.foreground
-        font.family: row.fontFamily
-        font.pixelSize: Style.bar.iconFont
-        font.bold: true
+      Repeater {
+        id: iconRepeater
+        model: row.shown
+        delegate: AppIcon { required property var modelData; group: modelData }
       }
-      MouseArea {
-        id: moreMouse
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onEntered: if (row.bar) row.bar.showTooltip(more, row.overflow.length + (row.overflow.length === 1 ? " more open app" : " more open apps"))
-        onExited: if (row.bar) row.bar.hideTooltip(more)
-        onClicked: function(mouse) {
-          if (mouse.button === Qt.RightButton) {
-            row.menuGroup = null
-            menuCard.anchorTarget = more
-            row.moreOpen = false
-            row.menuOpen = true
-          } else {
-            row.menuOpen = false
-            row.moreOpen = !row.moreOpen
+
+      // +N: the apps over the limit.
+      Item {
+        id: more
+        visible: row.overflow.length > 0
+        width: visible ? row.slot : 0
+        height: visible ? row.slot : 0
+        readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.cardOpen
+        Text {
+          anchors.centerIn: parent
+          text: "+" + row.overflow.length
+          color: row.foreground
+          font.family: row.fontFamily
+          font.pixelSize: Style.bar.iconFont
+          font.bold: true
+        }
+        MouseArea {
+          id: moreMouse
+          anchors.fill: parent
+          acceptedButtons: Qt.LeftButton | Qt.RightButton
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onEntered: if (row.bar) row.bar.showTooltip(more, row.overflow.length + (row.overflow.length === 1 ? " more open app" : " more open apps"))
+          onExited: if (row.bar) row.bar.hideTooltip(more)
+          onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) {
+              row.menuGroup = null
+              menuCard.anchorTarget = more
+              row.moreOpen = false
+              row.menuOpen = true
+            } else {
+              row.menuOpen = false
+              row.moreOpen = !row.moreOpen
+            }
           }
         }
       }

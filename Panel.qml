@@ -242,23 +242,93 @@ Item {
   readonly property bool openAppsOn: adapter === "tray" && setting("openApps", true) === true
   readonly property real hostedWidth: loader.item && loader.item.visible ? loader.item.implicitWidth : 0
   readonly property real hostedHeight: loader.item && loader.item.visible ? loader.item.implicitHeight : 0
-  readonly property real rowGap: openRow.visible && (hostedWidth > 0 || hostedHeight > 0) ? Style.space(4) : 0
   readonly property bool verticalBar: bar ? bar.vertical === true : false
+
+  // Horizontal tray copy: the open apps live in the tray's drawer. Left to right: the
+  // open-apps area (its full width reserved even when collapsed, as Omarchy reserves the
+  // tray drawer's), then the hosted tray. The icons slide out from the tray side with the
+  // tray's own reveal (600 ms OutCubic) and hide behind its `<`. When the tray shows no `<`
+  // (no tray apps), OmaColorBar draws its own at the right end of the area.
+  readonly property bool drawerMode: openAppsOn && !verticalBar
+  readonly property bool drawerActive: drawerMode && openRow.visible
+  readonly property var tray: adapter === "tray" ? loader.item : null
+  // The tray draws its `<` whenever it has an unpinned or pinned app (Tray.qml shows the
+  // drawer block for allItems.length > 0, even at drawerCount 0); use it then, so two `<`
+  // never sit side by side.
+  readonly property bool trayChevron: tray !== null && tray.visible === true
+    && ((tray.drawerCount || 0) > 0 || (tray.allItems ? tray.allItems.length > 0 : false))
+  readonly property bool ownChevron: drawerActive && !trayChevron
+  property bool ownExpanded: false
+  property real ownProgress: ownExpanded ? 1 : 0
+  Behavior on ownProgress {
+    NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+  }
+  readonly property real reveal: !drawerMode ? 1
+    : trayChevron ? (typeof tray.revealProgress === "number" ? tray.revealProgress : 0)
+    : ownProgress
+  readonly property real rowWidth: openRow.visible ? openRow.implicitWidth : 0
+  readonly property real chevronWidth: ownChevron ? ownChevronButton.implicitWidth : 0
+  readonly property real areaWidth: drawerMode ? rowWidth + chevronWidth : 0
+  // Left edge of the part of the area that is showing: the own `<`, or the sliding icons.
+  readonly property real revealStart: ownChevron ? ownChevronButton.x : rowWidth * (1 - reveal)
+  readonly property bool pointerInArea: keepOpen.hovered && keepOpen.point.position.x < areaWidth
+  // Over the shown part of the area (never the empty collapsed area): open the drawer.
+  readonly property bool overRevealed: drawerActive && pointerInArea
+    && keepOpen.point.position.x >= revealStart && (ownChevron || reveal > 0)
+  readonly property bool holdOpen: openRow.cardOpen
+
+  readonly property real rowGap: !drawerMode && openRow.visible && (hostedWidth > 0 || hostedHeight > 0) ? Style.space(4) : 0
+
+  function openDrawer() {
+    if (!drawerActive) return
+    if (trayChevron) tray.expanded = true
+    else ownExpanded = true
+  }
+
+  // Leaving the whole copy, with no card of the row (or the settings card) open, collapses.
+  function settleDrawer() {
+    if (keepOpen.hovered || holdOpen) return
+    if (trayChevron && tray.expanded === true) tray.expanded = false
+    ownExpanded = false
+  }
+
+  onOverRevealedChanged: if (overRevealed) openDrawer()
+  onHoldOpenChanged: if (!holdOpen) settleDrawer()
+  onOwnChevronChanged: if (!ownChevron) ownExpanded = false
+  // The last open app went away (or open apps were turned off) while the drawer was held open.
+  onDrawerActiveChanged: if (!drawerActive) settleDrawer()
+
+  // The tray collapses itself when the pointer leaves its drawer; keep it open while the
+  // pointer is on the shown open apps or a card of the row is open.
+  Connections {
+    target: root.drawerActive && root.trayChevron ? root.tray : null
+    ignoreUnknownSignals: true
+    function onExpandedChanged() {
+      if (!root.tray.expanded && (root.pointerInArea && root.reveal > 0 || root.holdOpen)) root.tray.expanded = true
+    }
+  }
 
   Item {
     id: slot
     visible: root.problem === ""
     implicitWidth: root.verticalBar ? Math.max(root.hostedWidth, openRow.visible ? openRow.implicitWidth : 0)
+      : root.drawerMode ? root.areaWidth + root.hostedWidth
       : root.hostedWidth + root.rowGap + (openRow.visible ? openRow.implicitWidth : 0)
     implicitHeight: root.verticalBar ? root.hostedHeight + root.rowGap + (openRow.visible ? openRow.implicitHeight : 0)
       : Math.max(root.hostedHeight, openRow.visible ? openRow.implicitHeight : 0)
     width: implicitWidth
     height: implicitHeight
 
+    // Passive: tells whether the pointer is anywhere on this copy (tray and open apps).
+    HoverHandler {
+      id: keepOpen
+      onHoveredChanged: if (!hovered) root.settleDrawer()
+    }
+
     Loader {
       id: loader
       width: root.hostedWidth
-      x: root.verticalBar ? (parent.width - width) / 2 : 0
+      x: root.verticalBar ? (parent.width - width) / 2 : root.areaWidth
       height: root.verticalBar ? root.hostedHeight : parent.height
       active: root.problem === ""
       sourceComponent: root.hostComponent
@@ -280,16 +350,34 @@ Item {
 
     OpenAppsRow {
       id: openRow
-      x: root.verticalBar ? (parent.width - width) / 2 : root.hostedWidth + root.rowGap
+      x: root.verticalBar ? (parent.width - width) / 2
+        : root.drawerMode ? root.chevronWidth
+        : root.hostedWidth + root.rowGap
       y: root.verticalBar ? root.hostedHeight + root.rowGap : 0
       height: root.verticalBar ? implicitHeight : parent.height
       bar: root.bar
       enabled: root.openAppsOn
+      drawer: root.drawerMode
+      reveal: root.reveal
       limit: OpenApps.clampLimit(root.setting("openAppsLimit", 6))
       showTerminals: root.setting("showTerminals", false) === true
       manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
       trayKeys: trayAdapter.shownKeys
       settingsOpen: settingsCard.open
+    }
+
+    // Own `<` when the tray shows none: same glyph and size as Omarchy's, at the right end
+    // of the area when collapsed, sliding left as the icons come out (Tray.qml's
+    // x: drawerExtent - revealExtent).
+    BarIconButton {
+      id: ownChevronButton
+      visible: root.ownChevron
+      bar: root.bar
+      width: implicitWidth
+      height: implicitHeight
+      anchors.verticalCenter: parent.verticalCenter
+      x: root.rowWidth * (1 - root.reveal)
+      text: "\uf053"
     }
   }
 
@@ -325,9 +413,13 @@ Item {
     onPressed: function(mouse) {
       var shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
       // The hosted tray uses plain middle-click itself (secondary activate); only the
-      // open-apps row, past the tray, opens the card without Shift.
-      var overHosted = root.adapter === "tray" && (root.verticalBar ? mouse.y < root.hostedHeight : mouse.x < root.hostedWidth)
-      if (!shift && (root.hostUsesMiddle || overHosted)) {
+      // open-apps area opens the card without Shift. On a horizontal bar that area is left
+      // of the tray (the drawer) and takes nothing while collapsed; on a vertical bar the
+      // row is below the tray.
+      var overHosted = root.adapter === "tray" && (root.verticalBar ? mouse.y < root.hostedHeight
+        : root.drawerMode ? mouse.x >= root.areaWidth : mouse.x < root.hostedWidth)
+      var overHidden = root.drawerActive && mouse.x < root.revealStart
+      if (!shift && (root.hostUsesMiddle || overHosted || overHidden)) {
         mouse.accepted = false
         return
       }
