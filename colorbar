@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""colorbar: swap Omarchy's built-in bar widgets for OmaColorBar copies, or put them back.
+
+  colorbar swap [shell.json] [--force]   back up shell.json, then swap every supported
+                                         built-in for a color copy in the same place
+  colorbar restore [shell.json]          put the backup back
+
+A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps the
+settings of a widget that is not in the layout (and saves inline changes)."""
+import json
+import os
+import shutil
+import sys
+import tempfile
+
+PLUGIN = "blackcode.omacolorbar"
+SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.audio",
+             "omarchy.microphone", "omarchy.power", "omarchy.monitor", "omarchy.system-update",
+             "omarchy.agents", "omarchy.tailscale"]
+DEFAULT = os.path.expanduser("~/.config/omarchy/shell.json")
+SUFFIX = ".omacolorbar-backup"
+
+
+def swapped(config):
+    out = json.loads(json.dumps(config))
+    layout = out.get("bar", {}).get("layout", {}) if isinstance(out.get("bar"), dict) else {}
+    for section in ("left", "center", "right"):
+        entries = layout.get(section)
+        if not isinstance(entries, list):
+            continue
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict) or entry.get("id") not in SUPPORTED:
+                continue
+            widget = entry["id"]
+            entries[i] = {"id": PLUGIN, "icon": widget}
+            plugins = out.setdefault("plugins", [])
+            existing = next((p for p in plugins if isinstance(p, dict) and p.get("id") == widget), None)
+            extra = {k: v for k, v in entry.items() if k != "id"}
+            if existing is None:
+                plugins.append({"id": widget, **extra})
+            else:
+                existing.update(extra)
+    return out
+
+
+def write_atomic(path, text):
+    folder = os.path.dirname(os.path.abspath(path))
+    mode = os.stat(path).st_mode & 0o777 if os.path.exists(path) else 0o644
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".colorbar-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.lexists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def fail(message):
+    print("colorbar: " + message, file=sys.stderr)
+    sys.exit(1)
+
+
+def swap(path, force):
+    backup = path + SUFFIX
+    if os.path.exists(backup) and not force:
+        fail(f"a backup already exists at {backup}; run restore first, or swap --force")
+    with open(path) as f:
+        config = json.load(f)
+    shutil.copy2(path, backup)
+    write_atomic(path, json.dumps(swapped(config), indent=2) + "\n")
+    print(f"swapped; the original is at {backup}")
+
+
+def restore(path):
+    backup = path + SUFFIX
+    if not os.path.exists(backup):
+        fail(f"no backup at {backup}")
+    os.replace(backup, path)
+    print("restored")
+
+
+def main(argv):
+    args = [a for a in argv if not a.startswith("--")]
+    force = "--force" in argv
+    if not args or args[0] not in ("swap", "restore"):
+        print(__doc__.strip())
+        sys.exit(2)
+    path = args[1] if len(args) > 1 else DEFAULT
+    if not os.path.exists(path):
+        fail(f"no file at {path}")
+    if args[0] == "swap":
+        swap(path, force)
+    else:
+        restore(path)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
