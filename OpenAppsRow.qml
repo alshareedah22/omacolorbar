@@ -51,6 +51,9 @@ Item {
   // hidden nothing in the row takes clicks or hover. Off (vertical bar): always shown.
   property bool drawer: false
   property real reveal: 1
+  // The panel's `<` leads the group: the panel opens the row's width with the reveal, and the
+  // icons stay left-aligned in it instead of sliding.
+  property bool alignLeft: false
   readonly property bool revealed: !drawer || reveal > 0
 
   readonly property var hiddenAll: OpenApps.withoutKey(store.keys.concat(manualHidden || []), "")
@@ -245,7 +248,7 @@ Item {
 
     Grid {
       id: grid
-      x: row.drawer ? grid.implicitWidth * (1 - row.reveal) : 0
+      x: row.drawer && !row.alignLeft ? grid.implicitWidth * (1 - row.reveal) : 0
       columns: row.vertical ? 1 : row.shownView.length + (row.overflow.length > 0 ? 1 : 0)
       spacing: 0
 

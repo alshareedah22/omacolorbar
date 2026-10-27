@@ -244,20 +244,30 @@ Item {
   readonly property real hostedHeight: loader.item && loader.item.visible ? loader.item.implicitHeight : 0
   readonly property bool verticalBar: bar ? bar.vertical === true : false
 
-  // Horizontal tray copy: the open apps live in the tray's drawer. Left to right: the
-  // open-apps area (its full width reserved even when collapsed, as Omarchy reserves the
-  // tray drawer's), then the hosted tray. The icons slide out from the tray side with the
-  // tray's own reveal (600 ms OutCubic) and hide behind its `<`. When the tray shows no `<`
-  // (no tray apps), OmaColorBar draws its own at the right end of the area.
+  // Horizontal tray copy: the open apps live in the tray's drawer. Expanded it reads
+  // [<][open apps][+N][tray drawer apps][pinned]; collapsed [<][pinned]. OmaColorBar draws the
+  // one `<` for the whole group and hides the hosted tray's own (Omarchy's `<` only travels the
+  // tray's drawer width). Geometry, with R = open-apps width, C = chevron width, D = the tray's
+  // drawerExtent (0 with no tray `<`) and p = reveal (the tray's 600 ms OutCubic revealProgress,
+  // or our own when the tray has no `<`):
+  //   hosted tray at x = R (+ C when the tray has no `<` slot of its own);
+  //   our `<` at x = (R + D)(1 - p): collapsed on the hidden tray `<`, expanded at 0;
+  //   open apps clipped to [`<` + C, `<` + C + R p], ending where the tray's drawer apps begin
+  //   (tray-local C + D(1 - p)).
+  // If the tray's `<` cannot be found, the old layout stays: open apps left of the tray's `<`.
   readonly property bool drawerMode: openAppsOn && !verticalBar
   readonly property bool drawerActive: drawerMode && openRow.visible
   readonly property var tray: adapter === "tray" ? loader.item : null
   // The tray draws its `<` whenever it has an unpinned or pinned app (Tray.qml shows the
-  // drawer block for allItems.length > 0, even at drawerCount 0); use it then, so two `<`
-  // never sit side by side.
+  // drawer block for allItems.length > 0, even at drawerCount 0).
   readonly property bool trayChevron: tray !== null && tray.visible === true
     && ((tray.drawerCount || 0) > 0 || (tray.allItems ? tray.allItems.length > 0 : false))
-  readonly property bool ownChevron: drawerActive && !trayChevron
+  // The hosted tray's `<` while it is hidden by us (null: not hidden, or not found).
+  property var trayChevronItem: null
+  property int chevronTries: 0
+  readonly property bool hideTrayChevron: drawerActive && trayChevron
+  // Our `<` for the group: always in drawer mode, unless the tray's could not be hidden.
+  readonly property bool ownChevron: drawerActive && (!trayChevron || trayChevronItem !== null)
   property bool ownExpanded: false
   property real ownProgress: ownExpanded ? 1 : 0
   Behavior on ownProgress {
@@ -267,15 +277,73 @@ Item {
     : trayChevron ? (typeof tray.revealProgress === "number" ? tray.revealProgress : 0)
     : ownProgress
   readonly property real rowWidth: openRow.visible ? openRow.implicitWidth : 0
-  readonly property real chevronWidth: ownChevron ? ownChevronButton.implicitWidth : 0
-  readonly property real areaWidth: drawerMode ? rowWidth + chevronWidth : 0
-  // Left edge of the part of the area that is showing: the own `<`, or the sliding icons.
-  readonly property real revealStart: ownChevron ? ownChevronButton.x : rowWidth * (1 - reveal)
-  readonly property bool pointerInArea: keepOpen.hovered && keepOpen.point.position.x < areaWidth
-  // Over the shown part of the area (never the empty collapsed area): open the drawer.
-  readonly property bool overRevealed: drawerActive && pointerInArea
-    && keepOpen.point.position.x >= revealStart && (ownChevron || reveal > 0)
+  readonly property real chevronWidth: ownChevronButton.implicitWidth
+  readonly property real trayDrawer: trayChevron && typeof tray.drawerExtent === "number" ? tray.drawerExtent : 0
+  // Width left of the hosted tray. With a tray `<`, ours sits on its (hidden) slot.
+  readonly property real areaWidth: !drawerMode ? 0
+    : ownChevron && !trayChevron ? rowWidth + chevronWidth
+    : rowWidth
+  readonly property real chevronX: ownChevron ? (rowWidth + trayDrawer) * (1 - reveal) : 0
+  // The shown part of our side: our `<` plus the revealed open apps (fallback: the sliding icons).
+  readonly property real revealStart: ownChevron ? chevronX : rowWidth * (1 - reveal)
+  readonly property real revealEnd: ownChevron ? chevronX + chevronWidth + rowWidth * reveal : areaWidth
+  // Read at call time from the hover handler (no stale bindings): over our `<` or the shown
+  // open apps. Never the empty collapsed area.
+  function overOwn(x) {
+    if (!drawerActive) return false
+    if (ownChevron) return x >= chevronX && x < chevronX + chevronWidth + rowWidth * reveal
+    return x < areaWidth && x >= rowWidth * (1 - reveal) && reveal > 0
+  }
+  readonly property bool pointerInArea: keepOpen.hovered && keepOpen.point.position.x >= revealStart
+    && keepOpen.point.position.x < revealEnd
+  readonly property bool overRevealed: drawerActive && pointerInArea && (ownChevron || reveal > 0)
   readonly property bool holdOpen: openRow.cardOpen
+
+  // The tray's `<` is a BarIconButton with Omarchy's chevron glyph, inside the tray's own
+  // Loader (horizontalTray).
+  function findChevron(item, depth) {
+    if (!item || depth > 8) return null
+    if ("iconComponent" in item && "glyphPaintedWidth" in item && item.text === "\uf053") return item
+    var kids = item.children || []
+    for (var i = 0; i < kids.length; i++) {
+      var found = findChevron(kids[i], depth + 1)
+      if (found) return found
+    }
+    return null
+  }
+
+  // Hide the tray's `<` while our `<` leads the group; give it back otherwise.
+  function syncTrayChevron() {
+    var found = hideTrayChevron ? findChevron(tray, 0) : null
+    // The old one may be gone with a rebuilt tray.
+    if (trayChevronItem && trayChevronItem !== found) try { trayChevronItem.visible = true } catch (e) {}
+    if (found) {
+      found.visible = false
+      chevronTries = 0
+    } else if (hideTrayChevron) {
+      if (chevronTries++ < 20) chevronRetry.restart()
+      else console.warn("[omacolorbar] tray: its < was not found; open apps stay left of it")
+    } else {
+      chevronTries = 0
+    }
+    trayChevronItem = found
+  }
+
+  onHideTrayChevronChanged: syncTrayChevron()
+  Component.onDestruction: if (trayChevronItem) try { trayChevronItem.visible = true } catch (e) {}
+
+  Timer {
+    id: chevronRetry
+    interval: 100
+    onTriggered: root.syncTrayChevron()
+  }
+
+  // The tray rebuilds its content (and its `<`) when the bar's orientation changes.
+  Connections {
+    target: root.tray
+    ignoreUnknownSignals: true
+    function onVerticalChanged() { root.chevronTries = 0; Qt.callLater(root.syncTrayChevron) }
+  }
 
   readonly property real rowGap: !drawerMode && openRow.visible && (hostedWidth > 0 || hostedHeight > 0) ? Style.space(4) : 0
 
@@ -295,7 +363,7 @@ Item {
 
   onOverRevealedChanged: if (overRevealed) openDrawer()
   onHoldOpenChanged: if (!holdOpen) settleDrawer()
-  onOwnChevronChanged: if (!ownChevron) ownExpanded = false
+  onOwnChevronChanged: if (!ownChevron || trayChevron) ownExpanded = false
   onTrayChevronChanged: if (!trayChevron) settleDrawer()
   // The last open app went away (or open apps were turned off) while the drawer was held open.
   onDrawerActiveChanged: if (!drawerActive) settleDrawer()
@@ -308,8 +376,8 @@ Item {
     function onExpandedChanged() {
       // Read the hover handler directly: pointerInArea can still be stale while
       // keepOpen's own hoveredChanged handler is collapsing the drawer.
-      var inArea = keepOpen.hovered && keepOpen.point.position.x < root.areaWidth
-      if (!root.tray.expanded && (inArea && root.reveal > 0 || root.holdOpen)) root.tray.expanded = true
+      var inArea = keepOpen.hovered && root.overOwn(keepOpen.point.position.x)
+      if (!root.tray.expanded && (inArea || root.holdOpen)) root.tray.expanded = true
     }
   }
 
@@ -345,10 +413,12 @@ Item {
         root.originalIcon = null
         root.tailscaleState = ""
         root.inject(item)
+        root.chevronTries = 0
         // Again on the next frame, as the bar does: some widgets read these while building.
         Qt.callLater(function() {
           root.inject(loader.item)
           if (root.adapter === "button") root.attach()
+          else root.syncTrayChevron()
         })
       }
     }
@@ -356,13 +426,17 @@ Item {
     OpenAppsRow {
       id: openRow
       x: root.verticalBar ? (parent.width - width) / 2
-        : root.drawerMode ? root.chevronWidth
+        : root.ownChevron ? root.chevronX + root.chevronWidth
+        : root.drawerMode ? 0
         : root.hostedWidth + root.rowGap
+      // Our `<` leads: the clip opens to R * p with its icons left-aligned.
+      width: root.ownChevron ? root.rowWidth * root.reveal : implicitWidth
       y: root.verticalBar ? root.hostedHeight + root.rowGap : 0
       height: root.verticalBar ? implicitHeight : parent.height
       bar: root.bar
       enabled: root.openAppsOn
       drawer: root.drawerMode
+      alignLeft: root.ownChevron
       reveal: root.reveal
       limit: OpenApps.clampLimit(root.setting("openAppsLimit", 6))
       showTerminals: root.setting("showTerminals", false) === true
@@ -371,9 +445,10 @@ Item {
       settingsOpen: settingsCard.open
     }
 
-    // Own `<` when the tray shows none: same glyph and size as Omarchy's, at the right end
-    // of the area when collapsed, sliding left as the icons come out (Tray.qml's
-    // x: drawerExtent - revealExtent).
+    // The group's one `<`: same glyph and size as Omarchy's. Collapsed it sits where the
+    // tray's hidden `<` was (or right of the empty open-apps area with no tray `<`), and slides
+    // to the left edge as the drawer opens. Right-click toggles the tray's "Tray icons" panel,
+    // like Omarchy's; left-click does nothing.
     BarIconButton {
       id: ownChevronButton
       visible: root.ownChevron
@@ -381,7 +456,11 @@ Item {
       width: implicitWidth
       height: implicitHeight
       anchors.verticalCenter: parent.verticalCenter
-      x: root.rowWidth * (1 - root.reveal)
+      x: root.chevronX
+      onPressed: function(button) {
+        if (button === Qt.RightButton && root.tray && "managePopupOpen" in root.tray)
+          root.tray.managePopupOpen = !root.tray.managePopupOpen
+      }
       text: "\uf053"
     }
   }
@@ -417,6 +496,13 @@ Item {
     acceptedButtons: Qt.MiddleButton
     onPressed: function(mouse) {
       var shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
+      // Our `<` leads the group: over it and the shown open apps the card opens; over the
+      // tray's apps and pinned items (or the empty collapsed area) the click goes on.
+      if (root.ownChevron) {
+        if (!shift && !root.overOwn(mouse.x)) { mouse.accepted = false; return }
+        settingsCard.open = !settingsCard.open
+        return
+      }
       // The hosted tray uses plain middle-click itself (secondary activate); only the
       // open-apps area opens the card without Shift. On a horizontal bar that area is left
       // of the tray (the drawer) and takes nothing while collapsed; on a vertical bar the

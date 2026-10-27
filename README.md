@@ -57,7 +57,7 @@ Omarchy's bar weather shows only the condition icon (no temperature), so the dra
 
 ## Open apps
 
-The `omarchy.tray` copy shows one color icon for each open app, inside the tray drawer. They hide behind the tray's `<` together with the tray apps (for example Claude). Hover the tray and they slide out with the tray apps; move away and they hide again. The drawer stays open while the pointer is on the open apps or one of their menus is open. If no app has a tray icon, OmaColorBar shows its own `<` for the open apps. On a vertical bar the open apps stay visible below the tray.
+The `omarchy.tray` copy shows one color icon for each open app, inside the tray drawer. Collapsed, the tray shows only its `<` and pinned apps. Hover the `<` and the drawer opens: from left to right you see the `<`, the open apps (and `+N`), then the tray apps (for example Claude), then the pinned apps. Move away and they hide again. The drawer stays open while the pointer is on the open apps or one of their menus is open. OmaColorBar draws this one `<` for the whole group (right-click it for Omarchy's tray icons panel), also when no app has a tray icon. On a vertical bar the open apps stay visible below the tray.
 
 - One icon per app. At 2 or more windows of the same app, the icon has a count badge.
 - Click focuses the app's latest window. Click again to cycle through its windows.
@@ -77,7 +77,7 @@ Hides made with a right-click are stored in the Quickshell state folder, in `~/.
 Middle-click any color icon to open its settings card. Exceptions:
 
 - Microphone and agents copies: plain middle-click keeps the widget's own action. Shift+middle-click opens the card.
-- Tray copy: plain middle-click over the tray apps goes to the tray app, as in Omarchy. Middle-click over the open apps opens the card. Shift+middle-click opens it anywhere.
+- Tray copy: plain middle-click over the tray apps goes to the tray app, as in Omarchy. Middle-click over the `<` or the open apps opens the card. Shift+middle-click opens it anywhere.
 
 Rows on the card:
 
