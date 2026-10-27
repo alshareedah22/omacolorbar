@@ -90,14 +90,20 @@ def swap(path, force):
         fail(f"{problem}; nothing was changed")
     if os.path.exists(backup) and not force:
         fail(f"a backup already exists at {backup}; run restore first, or swap --force")
-    text = json.dumps(swapped(config), indent=2) + "\n"
+    result = swapped(config)
+    if result == config:
+        print("nothing to swap: no supported built-in widgets in the layout")
+        return
+    text = json.dumps(result, indent=2) + "\n"
     mode = os.stat(path).st_mode & 0o777
-    if os.path.exists(backup):
+    kept = os.path.exists(backup)
+    if not kept:
+        write_atomic(backup, raw, mode)
+    write_atomic(path, text.encode(), mode)
+    if kept:
         print(f"kept the existing backup at {backup}; it holds the original, and the current file was swapped")
     else:
-        write_atomic(backup, raw, mode)
         print(f"swapped; the original is at {backup}")
-    write_atomic(path, text.encode(), mode)
 
 
 def restore(path):

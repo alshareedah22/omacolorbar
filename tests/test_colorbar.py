@@ -105,7 +105,11 @@ class CliTest(unittest.TestCase):
     def test_force_keeps_the_existing_backup_and_restores_the_original(self):
         backup = self.path + ".omacolorbar-backup"
         self.assertEqual(self.run_cli("swap", self.path).returncode, 0)
-        self.assertEqual(self.run_cli("swap", self.path, "--force").returncode, 0)
+        with open(self.path) as f:
+            config = json.load(f)
+        config["bar"]["layout"]["right"].append({"id": "omarchy.network"})
+        with open(self.path, "w") as f:
+            json.dump(config, f)
         r = self.run_cli("swap", self.path, "--force")
         self.assertEqual(r.returncode, 0)
         self.assertIn("kept", r.stdout)
@@ -114,6 +118,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(self.run_cli("restore", self.path).returncode, 0)
         with open(self.path, "rb") as f:
             self.assertEqual(f.read(), self.original)
+
+    def test_nothing_to_swap_writes_nothing(self):
+        cases = [{"bar": {"layout": {"left": [{"id": "omarchy.clock"}]}}}, {"idle": {}}, {"bar": {}}]
+        for config in cases:
+            with open(self.path, "w") as f:
+                json.dump(config, f)
+            with open(self.path, "rb") as f:
+                before = f.read()
+            r = self.run_cli("swap", self.path)
+            self.assertEqual(r.returncode, 0)
+            self.assertIn("nothing to swap", r.stdout)
+            self.assertFalse(os.path.exists(self.path + ".omacolorbar-backup"))
+            with open(self.path, "rb") as f:
+                self.assertEqual(f.read(), before)
 
     def test_restore_says_later_changes_are_replaced(self):
         self.run_cli("swap", self.path)
