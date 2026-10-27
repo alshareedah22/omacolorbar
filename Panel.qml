@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -179,8 +180,8 @@ Item {
       width: Style.bar.iconCanvas
       height: Style.bar.iconCanvas
       source: root.drawingSource
-      sourceSize.width: width * 2
-      sourceSize.height: height * 2
+      sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
+      sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
       fillMode: Image.PreserveAspectFit
       smooth: true
     }
@@ -227,8 +228,8 @@ Item {
           width: icon.height
           height: icon.height
           source: root.drawingSource
-          sourceSize.width: width * 2
-          sourceSize.height: height * 2
+          sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
+          sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
           fillMode: Image.PreserveAspectFit
           smooth: true
         }
@@ -275,8 +276,8 @@ Item {
     iconComponent: Component {
       Image {
         source: Qt.resolvedUrl("icons/warning.svg")
-        sourceSize.width: width * 2
-        sourceSize.height: height * 2
+        sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
+        sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
         fillMode: Image.PreserveAspectFit
         smooth: true
       }
