@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "blackcode.omacolorbar",
+  "name": "OmaColorBar",
+  "version": "1.0.0",
+  "author": "BlackCode",
+  "license": "MIT",
+  "description": "OmaColorBar: color gradient icons for Omarchy's built-in bar widgets. Each copy hosts the real widget, so its popup, clicks and settings stay Omarchy's own",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Color icon",
+    "description": "One of Omarchy's bar widgets, with a color icon",
+    "category": "Appearance",
+    "allowMultiple": true,
+    "defaultSection": "right",
+    "defaults": {
+      "icon": "omarchy.network",
+      "menuLogo": "Omarchy"
+    },
+    "schema": [
+      {
+        "key": "icon",
+        "type": "enum",
+        "label": "Icon",
+        "options": [
+          "omarchy.menu",
+          "omarchy.network",
+          "omarchy.bluetooth",
+          "omarchy.audio",
+          "omarchy.microphone",
+          "omarchy.power",
+          "omarchy.monitor",
+          "omarchy.system-update",
+          "omarchy.agents",
+          "omarchy.tailscale"
+        ],
+        "defaultValue": "omarchy.network",
+        "description": "Which built-in widget this copy shows. Its popup, clicks and settings stay Omarchy's own."
+      },
+      {
+        "key": "menuLogo",
+        "type": "enum",
+        "label": "Menu logo",
+        "options": [
+          "Omarchy",
+          "Arch"
+        ],
+        "defaultValue": "Omarchy",
+        "description": "For the copy set to omarchy.menu: the Omarchy logo in green, or the Arch Linux logo in its official blue."
+      }
+    ]
+  }
+}
