@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import qs.Commons
 import "Apps.js" as Apps
 
 // Gives every tray icon in the hosted tray its app's own color icon. The tray builds its
@@ -10,6 +11,8 @@ Item {
 
   property var host: null
   property bool enabled: false
+  // Tray icons already set to the bar's icon size (destroyed ones drop out on the next host).
+  property var sized: []
   property var adapted: []
   property var adaptedKeys: []
   property var shownKeys: []
@@ -98,6 +101,13 @@ Item {
     }
     var found = trayIcons(host, 0, [])
     for (var i = 0; i < found.length; i++) {
+      // Every tray icon at the bar's icon size, the same as the open apps next to them
+      // (Omarchy draws tray icons smaller, at Style.space(12)).
+      if (sized.indexOf(found[i]) === -1) {
+        found[i].width = Qt.binding(function() { return Style.bar.iconCanvas })
+        found[i].height = Qt.binding(function() { return Style.bar.iconCanvas })
+        sized.push(found[i])
+      }
       if (live.indexOf(found[i]) !== -1) continue
       var key = adapt(found[i])
       if (key === null) continue
@@ -113,6 +123,7 @@ Item {
   }
 
   onHostChanged: {
+    sized = []
     adapted = []
     adaptedKeys = []
     shownKeys = []

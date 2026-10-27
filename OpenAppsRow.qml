@@ -22,6 +22,8 @@ Item {
 
   readonly property bool vertical: bar ? bar.vertical === true : false
   readonly property int slot: Style.bar.statusSlot
+  // Same width as a tray item, so open apps and tray apps are spaced alike.
+  readonly property int itemWidth: Style.bar.iconSlot
   readonly property int iconSize: Style.bar.iconCanvas
   readonly property color foreground: bar ? bar.foreground : Commons.Color.popups.text
   // Commons.Color: a bare `Color` resolves to another type in this file's imports.
@@ -176,7 +178,7 @@ Item {
   component AppIcon: Item {
     id: appIcon
     required property var group
-    width: row.slot
+    width: row.vertical ? row.slot : row.itemWidth
     height: row.slot
     // No tooltip while a card is open: it would sit on top of the card and take its clicks.
     readonly property bool tooltipHovered: visible && iconMouse.containsMouse && !row.cardOpen
@@ -262,7 +264,7 @@ Item {
       Item {
         id: more
         visible: row.overflow.length > 0
-        width: visible ? row.slot : 0
+        width: visible ? (row.vertical ? row.slot : row.itemWidth) : 0
         height: visible ? row.slot : 0
         readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.cardOpen
         Text {
