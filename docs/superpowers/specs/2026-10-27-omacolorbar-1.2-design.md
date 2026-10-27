@@ -101,7 +101,7 @@ that shows it, so OmaColorBar draws its own card.
 
 **Opening it**
 - Middle-click any OmaColorBar copy opens a `PopupCard` (`qs.Ui`) anchored to that copy.
-  Outside click or Escape closes it.
+  An outside click (or middle-click again) closes it.
 - A `MouseArea` over the copy accepts only `Qt.MiddleButton`, so left/right clicks, scroll,
   hover and tooltips still reach the hosted Omarchy widget.
 - Two hosted widgets use middle-click themselves: `omarchy.microphone` (opens the audio panel)

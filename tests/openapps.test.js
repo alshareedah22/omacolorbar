@@ -65,3 +65,13 @@ test("OpenApps.js avoids Array.from, codePointAt and .import", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "OpenApps.js"), "utf8").replace(/\/\/.*$/gm, "")
   assert.ok(!/\b(Array\.from|codePointAt)\b|^\.import/m.test(src))
 })
+
+test("view carries no window indices and findGroup looks up by key", () => {
+  const gs = O.group([w("a", 1, 0), w("b", 2, 0), w("a", 1, 0)], NONE)
+  assert.deepStrictEqual(O.view(gs), [{ key: "a", name: "a", icon: "a-icon", count: 2 }, { key: "b", name: "b", icon: "b-icon", count: 1 }])
+  // Closing an earlier unrelated window shifts indices but not the view.
+  const after = O.group([w("a", 1, 0), w("b", 2, 0)], NONE)
+  assert.deepStrictEqual(O.view(O.group([w("x", 0, 0), w("b", 2, 0)], { hidden: ["x"] })), [{ key: "b", name: "b", icon: "b-icon", count: 1 }])
+  assert.strictEqual(O.findGroup(after, "b").key, "b")
+  assert.strictEqual(O.findGroup(after, "gone"), null)
+})

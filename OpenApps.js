@@ -39,6 +39,18 @@ function split(groups, limit) {
   return { shown: groups.slice(0, n), overflow: groups.slice(n) }
 }
 
+// What the icons draw: no window indices, so the delegates are only rebuilt when something
+// visible (key, name, icon, count) changes, not when an unrelated window closes.
+function view(groups) {
+  return (groups || []).map(function(g) { return { key: g.key, name: g.name, icon: g.icon, count: g.windows.length } })
+}
+
+// The current group for a key, or null when that app has no window any more.
+function findGroup(groups, key) {
+  for (var i = 0; i < (groups || []).length; i++) if (groups[i].key === key) return groups[i]
+  return null
+}
+
 // The window a click on this app focuses: the next one when the app is already focused,
 // otherwise the one used most recently.
 function nextWindow(group, windows, activeIndex) {

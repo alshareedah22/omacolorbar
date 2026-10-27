@@ -56,6 +56,20 @@ PopupCard {
     } catch (e) { return null }
   }
 
+  // True when the rolling backup file already holds exactly `raw` (a missing file holds nothing).
+  function backupHolds(raw) {
+    try {
+      backup.reload()
+      return String(backup.text()) === raw
+    } catch (e) { return false }
+  }
+
+  // After a failed save the controls show the saved values again (they assign their own value).
+  function resetControls() {
+    widgetDropdown.value = card.icon
+    limitField.value = OpenApps.clampLimit(card.setting("openAppsLimit", 6))
+  }
+
   // Writes `changes` into this copy's entry only. Returns true when nothing is left to do.
   function save(changes) {
     try {
@@ -69,14 +83,13 @@ PopupCard {
         return false
       }
       if (plan.unchanged) { message = ""; return true }
-      // A FileView skips a write whose text equals what it last held. The backup already
-      // holds `raw` when it equals the last backup written; the main file is written through
-      // the reader, which holds `raw` and so always writes `plan.next`.
-      if (raw !== lastBackup) {
+      // A FileView skips a write whose text equals what it holds, so the backup is only skipped
+      // when the file on disk (read fresh, another copy may have rewritten it) is exactly `raw`.
+      // The main file is written through the reader, which holds `raw` and so always writes `plan.next`.
+      if (!backupHolds(raw)) {
         backupFailed = false
         backup.setText(raw)
         if (!backup.waitForJob() || backupFailed) { message = "Could not back up shell.json"; return false }
-        lastBackup = raw
       }
       writeFailed = false
       message = ""
@@ -94,15 +107,15 @@ PopupCard {
   }
 
   // PopupCard's default property only takes visual items, so the file views are properties.
-  property string lastBackup: ""
   property FileView reader: FileView {
     path: card.shellPath
     blockAllReads: true
+    preload: false
     atomicWrites: true
     printErrors: false
     onSaveFailed: function(error) { card.writeFailed = true; card.message = "Could not write shell.json: " + FileViewError.toString(error) }
   }
-  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; atomicWrites: true; preload: false; printErrors: false; onSaveFailed: function(error) { card.backupFailed = true } }
+  property FileView backup: FileView { path: Quickshell.env("HOME") + "/.config/omarchy/shell.json.omacolorbar-settings-backup"; blockAllReads: true; atomicWrites: true; preload: false; printErrors: false; onSaveFailed: function(error) { card.backupFailed = true } }
 
   contentWidth: card.fittedContentWidth(Style.space(300))
   contentHeight: card.fittedContentHeight(column.implicitHeight)
@@ -121,11 +134,24 @@ PopupCard {
     }
 
     Dropdown {
+      id: widgetDropdown
       width: parent.width
       label: "Widget"
       value: card.icon
       options: card.widgetChoices
-      onChanged: function(value) { if (value !== card.icon && card.save({ icon: value })) card.close() }
+      onChanged: function(value) {
+        if (value === card.icon) return
+        if (card.save({ icon: value })) card.close(); else card.resetControls()
+      }
+    }
+
+    Text {
+      visible: card.isMenu
+      text: "Menu logo"
+      color: Qt.darker(card.foreground, 1.4)
+      font.family: card.fontFamily
+      font.pixelSize: Style.font.caption
+      font.bold: true
     }
 
     ButtonGroup {
@@ -146,12 +172,13 @@ PopupCard {
     }
 
     NumberField {
+      id: limitField
       visible: card.isTray
       label: "Apps shown"
       from: 1
       to: 20
       value: OpenApps.clampLimit(card.setting("openAppsLimit", 6))
-      onModified: function(value) { card.save({ openAppsLimit: OpenApps.clampLimit(value) }) }
+      onModified: function(value) { if (!card.save({ openAppsLimit: OpenApps.clampLimit(value) })) card.resetControls() }
     }
 
     Row {

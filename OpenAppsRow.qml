@@ -40,6 +40,8 @@ Item {
   property var groups: []
   property var shown: []
   property var overflow: []
+  property var shownView: []      // {key, name, icon, count} per shown app: what the icons draw
+  property var overflowView: []   // the same for the +N apps
   property var menuGroup: null    // app the right-click card is for (null = the +N card)
   property bool menuOpen: false
   property bool moreOpen: false
@@ -113,17 +115,23 @@ Item {
     if (JSON.stringify(next) !== JSON.stringify(groups)) groups = next
     if (JSON.stringify(parts.shown) !== JSON.stringify(shown)) shown = parts.shown
     if (JSON.stringify(parts.overflow) !== JSON.stringify(overflow)) overflow = parts.overflow
+    // The delegates' models carry no window indices, so closing an unrelated window rebuilds nothing.
+    var sv = OpenApps.view(parts.shown), ov = OpenApps.view(parts.overflow)
+    if (JSON.stringify(sv) !== JSON.stringify(shownView)) shownView = sv
+    if (JSON.stringify(ov) !== JSON.stringify(overflowView)) overflowView = ov
+    // Its app's last window closed (or the icon went away): close the menu rather than leave it dangling.
+    if (menuOpen && menuGroup !== null && (OpenApps.findGroup(groups, menuGroup.key) === null || !menuCard.anchorTarget)) menuOpen = false
   }
 
   function focusApp(stale) {
-    var group = stale
-    for (var i = 0; i < groups.length; i++) if (groups[i].key === stale.key) group = groups[i]
+    var group = OpenApps.findGroup(groups, stale.key)
+    if (!group) return
     var idx = OpenApps.nextWindow(group, windows, tops.indexOf(ToplevelManager.activeToplevel))
     if (tops[idx]) tops[idx].activate()
   }
 
   function nameOf(group) {
-    return group.name + (group.windows.length > 1 ? " (" + group.windows.length + " windows)" : "")
+    return group.name + (group.count > 1 ? " (" + group.count + " windows)" : "")
   }
 
   // PopupCard closes its owner on an outside click.
@@ -187,7 +195,7 @@ Item {
     }
 
     Rectangle {
-      visible: appIcon.group.windows.length > 1
+      visible: appIcon.group.count > 1
       anchors.right: parent.right
       anchors.bottom: parent.bottom
       width: Math.max(height, count.implicitWidth + Style.space(4))
@@ -197,7 +205,7 @@ Item {
       Text {
         id: count
         anchors.centerIn: parent
-        text: String(appIcon.group.windows.length)
+        text: String(appIcon.group.count)
         color: row.badgeText
         font.family: row.fontFamily
         font.pixelSize: Style.font.caption
@@ -238,12 +246,12 @@ Item {
     Grid {
       id: grid
       x: row.drawer ? grid.implicitWidth * (1 - row.reveal) : 0
-      columns: row.vertical ? 1 : row.shown.length + (row.overflow.length > 0 ? 1 : 0)
+      columns: row.vertical ? 1 : row.shownView.length + (row.overflow.length > 0 ? 1 : 0)
       spacing: 0
 
       Repeater {
         id: iconRepeater
-        model: row.shown
+        model: row.shownView
         delegate: AppIcon { required property var modelData; group: modelData }
       }
 
@@ -303,7 +311,7 @@ Item {
       anchors.fill: parent
       spacing: Style.space(4)
       Repeater {
-        model: row.overflow
+        model: row.overflowView
         delegate: Item {
           required property var modelData
           width: moreColumn.width
@@ -350,6 +358,7 @@ Item {
     bar: row.bar
     open: row.menuOpen
     onOpenChanged: if (!open) row.menuOpen = false
+    onAnchorTargetChanged: if (!anchorTarget && row.menuOpen) row.menuOpen = false
     contentWidth: menuCard.fittedContentWidth(Style.space(240))
     contentHeight: menuCard.fittedContentHeight(menuColumn.implicitHeight)
 
