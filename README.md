@@ -109,10 +109,16 @@ The built-in widget's own settings (for example `showPercentage` on power) live 
 ## Undo
 
 ```bash
+~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar unswap
+```
+
+`unswap` is the gentle undo. It turns every OmaColorBar copy in `bar.layout` back into its built-in widget, in the same position, and keeps everything else you changed since the swap. It needs no backup. The built-ins' settings already live in `plugins[]`, so nothing else is needed. A copy's own keys (menuLogo, openApps, openAppsLimit, hiddenApps, showTerminals) are dropped. A bare `{"id":"blackcode.omacolorbar"}` without an icon means the network widget, so it becomes `{"id":"omarchy.network"}`, or is removed if `omarchy.network` is already on the bar. Before writing, it saves the previous file as `shell.json.omacolorbar-unswap-<UTC time>`. It does not touch the swap backup, and it prints "nothing to unswap" when there are no copies.
+
+```bash
 ~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar restore
 ```
 
-This puts the backup back and removes it. Any changes made since the swap, including settings Omarchy saved into `plugins[]`, are replaced by the backup.
+`restore` is the second option. It puts the swap-time backup back as the whole file and removes it, so every change made since the swap, including settings Omarchy saved into `plugins[]`, is discarded. It refuses a backup that is not valid JSON or has no `bar.layout` object.
 
 `colorbar swap` refuses to run while a backup exists ("run restore first, or swap --force"). `swap --force` keeps the existing backup, which holds your original, and swaps the current file; it never overwrites the original.
 
@@ -120,14 +126,23 @@ You can also set the entries back by hand: replace `{"id":"blackcode.omacolorbar
 
 ## Remove
 
-Put the original bar back first, then remove the plugin:
+Undo the swap first, then remove the plugin:
 
 ```bash
-~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar restore
+~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar unswap
 omarchy plugin remove blackcode.omacolorbar
 ```
 
-If the backup is gone, replace each `{"id": "blackcode.omacolorbar", "icon": "<id>"}` entry in `~/.config/omarchy/shell.json` with `{"id": "<id>"}` before removing the plugin.
+You can use `colorbar restore` instead of `unswap` if you want the old file back exactly.
+
+If you remove the plugin first, the bar simply shows nothing in those spots: Omarchy draws an empty slot for a missing plugin. To fix it, reinstall the plugin and run `colorbar unswap`, or edit `~/.config/omarchy/shell.json` by hand and replace each `{"id": "blackcode.omacolorbar", "icon": "<id>"}` entry with `{"id": "<id>"}`.
+
+The plugin may leave these files behind. All of them are safe to delete:
+
+- `~/.config/omarchy/shell.json.omacolorbar-backup`
+- `~/.config/omarchy/shell.json.omacolorbar-settings-backup`
+- `~/.config/omarchy/shell.json.omacolorbar-unswap-*`
+- the hidden-apps state file `~/.local/state/quickshell/by-shell/<id>/omacolorbar-hidden-apps.json`
 
 ## When Omarchy changes
 

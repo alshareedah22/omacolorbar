@@ -3,7 +3,11 @@
 
   colorbar swap [shell.json] [--force]   back up shell.json, then swap every supported
                                          built-in for a color copy in the same place
-  colorbar restore [shell.json]          put the backup back
+  colorbar unswap [shell.json]           the gentle undo: turn every OmaColorBar copy back into its
+                                         built-in in the same place, keep all other changes, no
+                                         backup needed (writes a timestamped safety copy first)
+  colorbar restore [shell.json]          put the swap backup back as the whole file, discarding
+                                         every change made since (prefer unswap)
 
 A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps the
 settings of a widget that is not in the layout. The copy reads them from there; the hosted
@@ -12,6 +16,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 
 PLUGIN = "blackcode.omacolorbar"
 SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.audio",
@@ -107,10 +112,90 @@ def swap(path, force):
         print(f"swapped; the original is at {backup}")
 
 
+def unswapped(config):
+    """Return (new config, list of (section, index, old, new-or-None)) with every copy undone."""
+    out = json.loads(json.dumps(config))
+    layout = out.get("bar", {}).get("layout", {}) if isinstance(out.get("bar"), dict) else {}
+    network = any(isinstance(e, dict) and e.get("id") == "omarchy.network"
+                  for s in ("left", "center", "right") if isinstance(layout.get(s), list)
+                  for e in layout[s])
+    changes = []
+    for section in ("left", "center", "right"):
+        entries = layout.get(section)
+        if not isinstance(entries, list):
+            continue
+        kept = []
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict) or entry.get("id") != PLUGIN:
+                kept.append(entry)
+                continue
+            icon = entry.get("icon")
+            if not isinstance(icon, str) or not icon:
+                if network:
+                    changes.append((section, i, entry, None))
+                    continue
+                icon = "omarchy.network"
+            new = {"id": icon}
+            changes.append((section, i, entry, new))
+            kept.append(new)
+        layout[section] = kept
+    return out, changes
+
+
+def unswap(path):
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        config = json.loads(raw)
+    except (OSError, ValueError) as e:
+        fail(f"cannot read {path}: {e}")
+    problem = shape_problem(config)
+    if problem:
+        fail(f"{problem}; nothing was changed")
+    result, changes = unswapped(config)
+    if not changes:
+        print("nothing to unswap: no OmaColorBar copies in the layout")
+        return
+    text = json.dumps(result, indent=2) + "\n"
+    try:
+        problem = shape_problem(json.loads(text))
+    except ValueError as e:
+        problem = str(e)
+    if problem:
+        fail(f"the result did not validate ({problem}); nothing was changed")
+    mode = os.stat(path).st_mode & 0o777
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    safety = f"{path}.omacolorbar-unswap-{stamp}"
+    n = 1
+    while os.path.exists(safety):
+        n += 1
+        safety = f"{path}.omacolorbar-unswap-{stamp}-{n}"
+    write_atomic(safety, raw, mode)
+    write_atomic(path, text.encode(), mode)
+    for section, i, old, new in changes:
+        print(f"{section}[{i}]: {json.dumps(old)} -> " + (json.dumps(new) if new else "removed (omarchy.network is already on the bar)"))
+    print(f"unswapped {len(changes)} entr{'y' if len(changes) == 1 else 'ies'}; the previous file is at {safety}")
+
+
+def backup_problem(backup):
+    try:
+        with open(backup, "rb") as f:
+            data = json.loads(f.read())
+    except (OSError, ValueError) as e:
+        return f"the backup is not valid JSON ({e})"
+    bar = data.get("bar") if isinstance(data, dict) else None
+    if not isinstance(bar, dict) or not isinstance(bar.get("layout"), dict):
+        return "the backup has no bar.layout object"
+    return None
+
+
 def restore(path):
     backup = path + SUFFIX
     if not os.path.exists(backup):
         fail(f"no backup at {backup}")
+    problem = backup_problem(backup)
+    if problem:
+        fail(f"{problem}; refusing to restore {backup}. Nothing was changed. Try 'colorbar unswap' instead")
     os.replace(backup, path)
     print("restored the original; any changes made since the swap, including settings Omarchy saved, were replaced by the backup")
 
@@ -118,7 +203,7 @@ def restore(path):
 def main(argv):
     args = [a for a in argv if not a.startswith("--")]
     force = "--force" in argv
-    if not args or args[0] not in ("swap", "restore"):
+    if not args or args[0] not in ("swap", "restore", "unswap"):
         print(__doc__.strip())
         sys.exit(2)
     path = os.path.realpath(args[1] if len(args) > 1 else DEFAULT)
@@ -126,6 +211,8 @@ def main(argv):
         fail(f"no file at {path}")
     if args[0] == "swap":
         swap(path, force)
+    elif args[0] == "unswap":
+        unswap(path)
     else:
         restore(path)
 

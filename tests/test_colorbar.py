@@ -189,6 +189,131 @@ class CliTest(unittest.TestCase):
             self.assertEqual(f.read(), self.original)
 
 
+class UnswapTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "shell.json")
+
+    def write(self, config):
+        with open(self.path, "w") as f:
+            json.dump(config, f, indent=2)
+            f.write("\n")
+
+    def read(self):
+        with open(self.path) as f:
+            return json.load(f)
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True)
+
+    def safety_copies(self):
+        return [n for n in os.listdir(self.dir.name) if ".omacolorbar-unswap-" in n]
+
+    def test_swap_then_unswap_keeps_positions_and_later_changes(self):
+        self.write(SAMPLE)
+        self.run_cli("swap", self.path)
+        config = self.read()
+        config["idle"] = {"x": 2}
+        self.write(config)
+        r = self.run_cli("unswap", self.path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = self.read()
+        self.assertEqual(out["bar"]["layout"]["left"], [{"id": "omarchy.menu"}, {"id": "omarchy.workspaces"}])
+        self.assertEqual([e["id"] for e in out["bar"]["layout"]["right"]],
+                         ["blackcode.omadbngin", "omarchy.power", "omarchy.audio", "someone.unknown"])
+        self.assertEqual(out["idle"], {"x": 2})
+        self.assertEqual(out["plugins"][0], {"id": "omarchy.audio", "step": 5})
+
+    def test_other_entries_and_keys_untouched_and_copy_keys_dropped(self):
+        config = {"bar": {"position": "top", "layout": {
+            "left": [{"id": "omarchy.clock", "format": "HH:mm"},
+                     {"id": "blackcode.omacolorbar", "icon": "omarchy.menu", "menuLogo": "x"}],
+            "center": [],
+            "right": [{"id": "blackcode.omacolorbar", "icon": "omarchy.tray", "openApps": True,
+                       "openAppsLimit": 3, "hiddenApps": ["a"], "showTerminals": True},
+                      {"id": "someone.unknown", "k": 1}]}}, "idle": {"x": 1}}
+        self.write(config)
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        out = self.read()
+        self.assertEqual(out["bar"]["layout"]["left"], [{"id": "omarchy.clock", "format": "HH:mm"}, {"id": "omarchy.menu"}])
+        self.assertEqual(out["bar"]["layout"]["right"], [{"id": "omarchy.tray"}, {"id": "someone.unknown", "k": 1}])
+        self.assertEqual(out["bar"]["position"], "top")
+        self.assertEqual(out["idle"], {"x": 1})
+
+    def test_bare_entry_becomes_network_or_is_dropped(self):
+        self.write({"bar": {"layout": {"left": [], "center": [], "right": [{"id": "blackcode.omacolorbar"}]}}})
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        self.assertEqual(self.read()["bar"]["layout"]["right"], [{"id": "omarchy.network"}])
+        self.write({"bar": {"layout": {"left": [{"id": "omarchy.network"}], "center": [],
+                                       "right": [{"id": "blackcode.omacolorbar"}, {"id": "omarchy.audio"}]}}})
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        out = self.read()
+        self.assertEqual(out["bar"]["layout"]["left"], [{"id": "omarchy.network"}])
+        self.assertEqual(out["bar"]["layout"]["right"], [{"id": "omarchy.audio"}])
+
+    def test_no_copies_does_nothing(self):
+        self.write(SAMPLE)
+        with open(self.path, "rb") as f:
+            before = f.read()
+        r = self.run_cli("unswap", self.path)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("nothing to unswap", r.stdout)
+        with open(self.path, "rb") as f:
+            self.assertEqual(f.read(), before)
+        self.assertEqual(self.safety_copies(), [])
+
+    def test_invalid_json_is_refused(self):
+        with open(self.path, "w") as f:
+            f.write("{not json")
+        r = self.run_cli("unswap", self.path)
+        self.assertEqual(r.returncode, 1)
+        self.assertNotIn("Traceback", r.stderr)
+        with open(self.path) as f:
+            self.assertEqual(f.read(), "{not json")
+        self.assertEqual(self.safety_copies(), [])
+
+    def test_safety_copy_is_the_previous_file_and_mode_kept(self):
+        self.write(SAMPLE)
+        self.run_cli("swap", self.path)
+        os.chmod(self.path, 0o640)
+        with open(self.path, "rb") as f:
+            before = f.read()
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        copies = self.safety_copies()
+        self.assertEqual(len(copies), 1)
+        with open(os.path.join(self.dir.name, copies[0]), "rb") as f:
+            self.assertEqual(f.read(), before)
+        self.assertEqual(os.stat(self.path).st_mode & 0o777, 0o640)
+
+    def test_swap_backup_is_untouched(self):
+        self.write(SAMPLE)
+        self.run_cli("swap", self.path)
+        backup = self.path + ".omacolorbar-backup"
+        with open(backup, "rb") as f:
+            before = f.read()
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        with open(backup, "rb") as f:
+            self.assertEqual(f.read(), before)
+
+    def test_restore_refuses_an_invalid_backup(self):
+        self.write(SAMPLE)
+        with open(self.path, "rb") as f:
+            before = f.read()
+        backup = self.path + ".omacolorbar-backup"
+        for text in ("{broken", "[]", '{"bar": {}}', '{"bar": {"layout": []}}'):
+            with self.subTest(text=text):
+                with open(backup, "w") as f:
+                    f.write(text)
+                r = self.run_cli("restore", self.path)
+                self.assertEqual(r.returncode, 1)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertIn("unswap", r.stderr)
+                self.assertTrue(os.path.exists(backup))
+                with open(self.path, "rb") as f:
+                    self.assertEqual(f.read(), before)
+
+
 class ManifestSyncTest(unittest.TestCase):
     def test_supported_matches_the_manifest_icon_options(self):
         with open(os.path.join(HERE, "..", "manifest.json")) as f:
