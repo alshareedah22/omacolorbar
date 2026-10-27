@@ -1,6 +1,6 @@
 # OmaColorBar 1.2.0: open apps next to the tray
 
-Date: 2026-10-27 · Status: design approved in chat, awaiting spec review
+Date: 2026-10-27 · Status: approved 2026-10-27
 Builds on: `2026-10-27-omacolorbar-1.1-design.md` (and its scope-changes note). Everything
 there still holds unless this document says otherwise.
 
@@ -83,6 +83,30 @@ The hosted tray's own settings stay in `plugins[]` (`omarchy.tray`), as in 1.1.0
   controller stops and asks the user; the proposed fallback is that right-click hiding
   lasts for the session and `hiddenApps` in `shell.json` makes it permanent (documented
   limit, like the tray's Pin/Hide).
+
+## Display scale (user requirement: every icon, every feature, any scale)
+
+Two scales apply and both must work: the monitor scale (Hyprland, e.g. 1, 1.25, 1.5, 2) and
+Omarchy's theme scale (`base-size`, `[spacing] scale`, bar tokens in `Commons/Style.qml`).
+
+- Every size in OmaColorBar QML comes from Omarchy's `Style` tokens (`Style.bar.iconCanvas`,
+  `Style.bar.statusSlot`, `Style.space(n)`, `Style.bar.iconFont`, font tokens); no hard-coded
+  pixel widths, heights, margins or font sizes. This covers the 1.0/1.1 icons, weather, the
+  tray app icons, the open-app icons, count badges, the `+N` button, its popup and the
+  right-click menu.
+- Every `Image` renders at the screen's pixel density: `sourceSize` = displayed size ×
+  `max(2, devicePixelRatio)` of the screen it is on, so drawings and app icons are sharp at
+  fractional and 2× scales (1.1.0 used a fixed ×2; this replaces it everywhere).
+- Text and badges stay inside their slot at every scale (no clipping, no overlap with the
+  next icon); the row's implicit size follows the tokens so the bar lays it out like
+  Omarchy's own widgets.
+- Tests: a Node test scans `Panel.qml`, `TrayAdapter.qml` and `OpenAppsRow.qml` and fails on
+  numeric literals for `width`/`height`/`implicitWidth`/`implicitHeight`/`pixelSize`/
+  `spacing`/margins (0 allowed) and on `sourceSize` without `devicePixelRatio`. Live: the
+  controller checks the whole bar (every OmaColorBar icon, weather, tray, open apps, badge,
+  `+N`, popup, right-click menu) at monitor scale 1, 1.5 and 2 on one monitor (temporary
+  `hyprctl keyword monitor`, restored afterwards) and reads screenshots for sharpness, size
+  and clipping.
 
 ## Failure behavior
 
