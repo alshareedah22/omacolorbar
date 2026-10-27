@@ -97,6 +97,64 @@ class CliTest(unittest.TestCase):
         self.run_cli("swap", self.path)
         self.assertEqual(os.stat(self.path).st_mode & 0o777, 0o600)
 
+    def test_backup_keeps_the_file_mode(self):
+        os.chmod(self.path, 0o600)
+        self.run_cli("swap", self.path)
+        self.assertEqual(os.stat(self.path + ".omacolorbar-backup").st_mode & 0o777, 0o600)
+
+    def test_force_keeps_the_existing_backup_and_restores_the_original(self):
+        backup = self.path + ".omacolorbar-backup"
+        self.assertEqual(self.run_cli("swap", self.path).returncode, 0)
+        self.assertEqual(self.run_cli("swap", self.path, "--force").returncode, 0)
+        r = self.run_cli("swap", self.path, "--force")
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("kept", r.stdout)
+        with open(backup, "rb") as f:
+            self.assertEqual(f.read(), self.original)
+        self.assertEqual(self.run_cli("restore", self.path).returncode, 0)
+        with open(self.path, "rb") as f:
+            self.assertEqual(f.read(), self.original)
+
+    def test_restore_says_later_changes_are_replaced(self):
+        self.run_cli("swap", self.path)
+        r = self.run_cli("restore", self.path)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("replaced", r.stdout)
+        self.assertIn("Omarchy", r.stdout)
+
+    def test_malformed_shape_fails_cleanly_without_a_backup(self):
+        backup = self.path + ".omacolorbar-backup"
+        cases = [
+            {"bar": {"layout": "oops"}},
+            {"bar": {"layout": {"right": "oops"}}},
+            {"bar": {"layout": {"left": None}}},
+            {"plugins": {"id": "omarchy.audio"}},
+        ]
+        for bad in cases:
+            with self.subTest(bad=bad):
+                text = json.dumps(bad, indent=2) + "\n"
+                with open(self.path, "w") as f:
+                    f.write(text)
+                r = self.run_cli("swap", self.path)
+                self.assertEqual(r.returncode, 1)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertFalse(os.path.exists(backup))
+                with open(self.path) as f:
+                    self.assertEqual(f.read(), text)
+
+    def test_symlinked_shell_json_stays_a_symlink(self):
+        real = os.path.join(self.dir.name, "real-shell.json")
+        os.rename(self.path, real)
+        os.symlink(real, self.path)
+        self.assertEqual(self.run_cli("swap", self.path).returncode, 0)
+        self.assertTrue(os.path.islink(self.path))
+        with open(real) as f:
+            self.assertEqual(json.load(f)["bar"]["layout"]["left"][0]["icon"], "omarchy.menu")
+        self.assertEqual(self.run_cli("restore", self.path).returncode, 0)
+        self.assertTrue(os.path.islink(self.path))
+        with open(real, "rb") as f:
+            self.assertEqual(f.read(), self.original)
+
 
 class ManifestSyncTest(unittest.TestCase):
     def test_supported_matches_the_manifest_icon_options(self):

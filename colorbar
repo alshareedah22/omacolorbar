@@ -9,7 +9,6 @@ A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps
 settings of a widget that is not in the layout (and saves inline changes)."""
 import json
 import os
-import shutil
 import sys
 import tempfile
 
@@ -43,13 +42,12 @@ def swapped(config):
     return out
 
 
-def write_atomic(path, text):
-    folder = os.path.dirname(os.path.abspath(path))
-    mode = os.stat(path).st_mode & 0o777 if os.path.exists(path) else 0o644
-    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".colorbar-", suffix=".json")
+def write_atomic(path, data, mode):
+    folder = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".colorbar-", suffix=".tmp")
     try:
-        with os.fdopen(fd, "w") as f:
-            f.write(text)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
         os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
@@ -63,15 +61,43 @@ def fail(message):
     sys.exit(1)
 
 
+def shape_problem(config):
+    if not isinstance(config, dict):
+        return "shell.json must hold a JSON object"
+    bar = config.get("bar")
+    if isinstance(bar, dict) and "layout" in bar:
+        layout = bar["layout"]
+        if not isinstance(layout, dict):
+            return "bar.layout must be an object"
+        for section in ("left", "center", "right"):
+            if section in layout and not isinstance(layout[section], list):
+                return f"bar.layout.{section} must be a list"
+    if "plugins" in config and not isinstance(config["plugins"], list):
+        return "plugins must be a list"
+    return None
+
+
 def swap(path, force):
     backup = path + SUFFIX
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        config = json.loads(raw)
+    except (OSError, ValueError) as e:
+        fail(f"cannot read {path}: {e}")
+    problem = shape_problem(config)
+    if problem:
+        fail(f"{problem}; nothing was changed")
     if os.path.exists(backup) and not force:
         fail(f"a backup already exists at {backup}; run restore first, or swap --force")
-    with open(path) as f:
-        config = json.load(f)
-    shutil.copy2(path, backup)
-    write_atomic(path, json.dumps(swapped(config), indent=2) + "\n")
-    print(f"swapped; the original is at {backup}")
+    text = json.dumps(swapped(config), indent=2) + "\n"
+    mode = os.stat(path).st_mode & 0o777
+    if os.path.exists(backup):
+        print(f"kept the existing backup at {backup}; it holds the original, and the current file was swapped")
+    else:
+        write_atomic(backup, raw, mode)
+        print(f"swapped; the original is at {backup}")
+    write_atomic(path, text.encode(), mode)
 
 
 def restore(path):
@@ -79,7 +105,7 @@ def restore(path):
     if not os.path.exists(backup):
         fail(f"no backup at {backup}")
     os.replace(backup, path)
-    print("restored")
+    print("restored the original; any changes made since the swap, including settings Omarchy saved, were replaced by the backup")
 
 
 def main(argv):
@@ -88,7 +114,7 @@ def main(argv):
     if not args or args[0] not in ("swap", "restore"):
         print(__doc__.strip())
         sys.exit(2)
-    path = args[1] if len(args) > 1 else DEFAULT
+    path = os.path.realpath(args[1] if len(args) > 1 else DEFAULT)
     if not os.path.exists(path):
         fail(f"no file at {path}")
     if args[0] == "swap":
