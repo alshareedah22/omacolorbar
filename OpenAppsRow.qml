@@ -254,6 +254,8 @@ Item {
     Grid {
       id: grid
       x: row.drawer && !row.alignLeft ? grid.implicitWidth * (1 - row.reveal) : 0
+      // Centered in the bar's height, like the tray icons next to it.
+      y: row.vertical ? 0 : Math.round((parent.height - height) / 2)
       columns: row.vertical ? 1 : row.shownView.length + (row.overflow.length > 0 ? 1 : 0)
       spacing: 0
 
