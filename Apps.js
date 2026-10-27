@@ -47,7 +47,7 @@ function lastSegment(desktopId) {
 // Each rule scores one app: the length of the key it matched, or 0 for no match.
 // The best-scoring app wins within a rule; ties keep list order.
 // Rules run in order (window class, desktop id, name) and the first rule with a match wins.
-function matchApp(tray, apps) {
+function matchAppEntry(tray, apps) {
   var t = tray || {}
   var key = trayKey(t.id)
   var title = normalize(t.title)
@@ -80,12 +80,39 @@ function matchApp(tray, apps) {
     }
   ]
   for (var r = 0; r < rules.length; r++) {
-    var best = 0, icon = ""
+    var best = 0, app = null
     for (var i = 0; i < list.length; i++) {
       var s = rules[r](list[i])
-      if (s > best) { best = s; icon = String(list[i].icon) }
+      if (s > best) { best = s; app = list[i] }
     }
-    if (best > 0) return icon
+    if (best > 0) return app
   }
-  return ""
+  return null
+}
+
+function matchApp(tray, apps) {
+  var entry = matchAppEntry(tray, apps)
+  return entry ? String(entry.icon) : ""
+}
+
+// The installed app a window belongs to. A window reports its real app id
+// ("com.anthropic.Claude", "chromium", "org.gnome.Nautilus"), so only exact matches count:
+// window class, desktop id, or a last desktop-id segment of 4+ characters.
+function appForWindow(appId, apps) {
+  var id = normalize(appId)
+  if (id === "") return null
+  var tail = normalize(lastSegment(appId))
+  var list = apps || []
+  var rules = [
+    function(a) { return normalize(a.wmClass) === id },
+    function(a) { return normalize(a.desktopId) === id },
+    function(a) {
+      var seg = normalize(lastSegment(a.desktopId))
+      return seg.length >= 4 && (seg === id || seg === tail)
+    }
+  ]
+  for (var r = 0; r < rules.length; r++)
+    for (var i = 0; i < list.length; i++)
+      if (list[i] && rules[r](list[i])) return list[i]
+  return null
 }

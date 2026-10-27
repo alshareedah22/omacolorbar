@@ -90,3 +90,47 @@ test("Apps.js avoids Array.from and codePointAt", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "Apps.js"), "utf8").replace(/\/\/.*$/gm, "")
   assert.ok(!/\b(Array\.from|codePointAt)\b/.test(src))
 })
+
+const WIN_APPS = [
+  { name: "Claude", icon: "claude-desktop", wmClass: "com.anthropic.Claude", desktopId: "com.anthropic.Claude" },
+  { name: "Ghostty", icon: "com.mitchellh.ghostty", wmClass: "com.mitchellh.ghostty", desktopId: "com.mitchellh.ghostty", terminal: true },
+  { name: "Chromium", icon: "chromium", wmClass: "chromium", desktopId: "chromium" },
+  { name: "HEY", icon: "/home/u/.local/share/applications/icons/HEY.png", wmClass: "chrome-app.hey.com__-Default", desktopId: "HEY" },
+  { name: "Files", icon: "org.gnome.Nautilus", wmClass: "", desktopId: "org.gnome.Nautilus" },
+  { name: "App", icon: "app", wmClass: "", desktopId: "app" }
+]
+
+test("matchAppEntry returns the matched app object; matchApp its icon", () => {
+  const e = A.matchAppEntry({ id: "Claude_status_icon_1", title: "", tooltipTitle: "" }, APPS)
+  assert.strictEqual(e.desktopId, "com.anthropic.Claude")
+  assert.strictEqual(A.matchAppEntry({ id: "", title: "", tooltipTitle: "" }, APPS), null)
+  assert.strictEqual(A.matchApp({ id: "Claude_status_icon_1", title: "", tooltipTitle: "" }, APPS), "claude-desktop")
+})
+
+test("appForWindow matches a window's app id exactly", () => {
+  assert.strictEqual(A.appForWindow("com.anthropic.Claude", WIN_APPS).name, "Claude")
+  assert.strictEqual(A.appForWindow("com.mitchellh.ghostty", WIN_APPS).name, "Ghostty")
+  assert.strictEqual(A.appForWindow("Chromium", WIN_APPS).name, "Chromium")
+  assert.strictEqual(A.appForWindow("chrome-app.hey.com__-Default", WIN_APPS).name, "HEY")
+  assert.strictEqual(A.appForWindow("org.gnome.Nautilus", WIN_APPS).name, "Files")
+  assert.strictEqual(A.appForWindow("nautilus", WIN_APPS).name, "Files")   // last desktop-id segment
+})
+
+test("appForWindow never guesses", () => {
+  assert.strictEqual(A.appForWindow("", WIN_APPS), null)
+  assert.strictEqual(A.appForWindow("chromium-browser-beta", WIN_APPS), null)
+  assert.strictEqual(A.appForWindow("my-app", WIN_APPS), null)   // "app" segment shorter than 4
+  assert.strictEqual(A.appForWindow("app", WIN_APPS).name, "App")   // exact desktop id still matches
+  assert.strictEqual(A.appForWindow("anything", []), null)
+})
+
+test("appForWindow matches the live window app ids of real installed entries", () => {
+  const LIVE = [
+    { name: "Google Chrome", icon: "google-chrome", wmClass: "google-chrome", desktopId: "google-chrome" },
+    { name: "Claude", icon: "claude-desktop", wmClass: "com.anthropic.Claude", desktopId: "com.anthropic.Claude" },
+    { name: "Ghostty", icon: "com.mitchellh.ghostty", wmClass: "com.mitchellh.ghostty", desktopId: "com.mitchellh.ghostty", terminal: true }
+  ]
+  assert.strictEqual(A.appForWindow("google-chrome", LIVE).name, "Google Chrome")
+  assert.strictEqual(A.appForWindow("com.anthropic.Claude", LIVE).name, "Claude")
+  assert.strictEqual(A.appForWindow("com.mitchellh.ghostty", LIVE).name, "Ghostty")
+})
