@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "blackcode.omacolorbar",
   "name": "OmaColorBar",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "BlackCode",
   "license": "MIT",
-  "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, open apps and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]",
+  "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, open apps and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]. Right-click the logo or press SUPER+CTRL+ALT+C for the settings panel",
   "kinds": [
     "service",
     "bar-widget"
@@ -26,7 +26,8 @@
       "openApps": true,
       "openAppsLimit": 6,
       "hiddenApps": [],
-      "showTerminals": false
+      "showTerminals": false,
+      "iconScale": 100
     },
     "schema": [
       {
@@ -48,7 +49,7 @@
           "omarchy.weather"
         ],
         "defaultValue": "omarchy.network",
-        "description": "Which built-in widget this copy shows. Its popup and clicks stay Omarchy's own."
+        "description": "Which built-in widget this copy shows. Its popup and clicks stay Omarchy's own. The omarchy.menu copy is locked to the menu."
       },
       {
         "key": "menuLogo",
@@ -56,10 +57,31 @@
         "label": "Menu logo",
         "options": [
           "Omarchy",
-          "Arch"
+          "Arch",
+          "Debian",
+          "Ubuntu",
+          "Fedora",
+          "Linux Mint",
+          "openSUSE",
+          "Manjaro",
+          "EndeavourOS",
+          "Gentoo",
+          "Void",
+          "NixOS",
+          "Alpine",
+          "Pop!_OS",
+          "elementary OS",
+          "Zorin OS",
+          "Kali",
+          "Rocky Linux",
+          "AlmaLinux",
+          "Red Hat",
+          "CentOS",
+          "Slackware",
+          "Tux"
         ],
         "defaultValue": "Omarchy",
-        "description": "For the copy set to omarchy.menu: the Omarchy logo in green, or the Arch Linux logo in its official blue."
+        "description": "For the copy set to omarchy.menu: the Omarchy logo, the Arch Linux logo, or another distro's logo, each in its official color."
       },
       {
         "key": "openApps",
@@ -93,6 +115,16 @@
         "label": "Show terminals",
         "defaultValue": false,
         "description": "For the copy set to omarchy.tray: also show terminal apps in the open-apps row."
+      },
+      {
+        "key": "iconScale",
+        "type": "integer",
+        "label": "Icon size %",
+        "min": 80,
+        "max": 130,
+        "step": 5,
+        "defaultValue": 100,
+        "description": "Size of the color icons, in percent of Omarchy's icon size. Set for every copy at once from the settings panel."
       }
     ]
   }

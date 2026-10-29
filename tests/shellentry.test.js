@@ -101,6 +101,57 @@ test("planSave: two copies with the same icon are 'many'", () => {
 
 test("planSave: switching to an icon another copy uses is 'used'", () => {
   const raw = S.serialize(cfg())
-  assert.strictEqual(S.planSave(raw, "omarchy.menu", { icon: "omarchy.tray" }).error, "used")
-  assert.ok(S.planSave(raw, "omarchy.menu", { icon: "omarchy.audio" }).next)
+  assert.strictEqual(S.planSave(raw, "omarchy.network", { icon: "omarchy.tray" }).error, "used")
+  assert.ok(S.planSave(raw, "omarchy.network", { icon: "omarchy.audio" }).next)
+})
+
+test("planSave: the menu copy is locked to the menu, no other copy becomes the menu", () => {
+  const raw = S.serialize(cfg())
+  assert.strictEqual(S.planSave(raw, "omarchy.menu", { icon: "omarchy.microphone" }).error, "locked")
+  assert.strictEqual(S.planSave(raw, "omarchy.network", { icon: "omarchy.menu" }).error, "locked")
+  assert.ok(S.planSave(raw, "omarchy.menu", { menuLogo: "Debian" }).next)
+})
+
+test("copies lists every copy with its place", () => {
+  assert.deepStrictEqual(S.copies(cfg()), [
+    { section: "left", index: 0, icon: "omarchy.menu" },
+    { section: "right", index: 0, icon: "omarchy.tray" },
+    { section: "right", index: 1, icon: "omarchy.network" }
+  ])
+  assert.deepStrictEqual(S.copies(null), [])
+})
+
+test("planRestore puts the backup's layout back when only OmaColorBar copies differ", () => {
+  const before = cfg()
+  const after = cfg()
+  after.bar.layout.right[1].icon = "omarchy.audio"
+  after.bar.layout.right[0].openAppsLimit = 9
+  after.bar.position = "bottom"
+  const plan = S.planRestore(S.serialize(after), S.serialize(before))
+  const next = JSON.parse(plan.next)
+  assert.deepStrictEqual(next.bar.layout, before.bar.layout)
+  assert.strictEqual(next.bar.position, "bottom", "keeps changes outside the layout")
+})
+
+test("planRestore refuses a layout changed outside OmaColorBar, a bad backup, or no menu", () => {
+  const before = cfg()
+  const moved = cfg()
+  moved.bar.layout.center.push({ id: "omarchy.audio" })
+  assert.strictEqual(S.planRestore(S.serialize(moved), S.serialize(before)).error, "changed")
+  assert.strictEqual(S.planRestore(S.serialize(before), "{nope").error, "invalid")
+  assert.strictEqual(S.planRestore(S.serialize(before), "").error, "nobackup")
+  const noMenu = cfg()
+  noMenu.bar.layout.left[0].icon = "omarchy.microphone"
+  assert.strictEqual(S.planRestore(S.serialize(before), S.serialize(noMenu)).error, "nomenu")
+  assert.strictEqual(S.planRestore(S.serialize(before), S.serialize(before)).unchanged, true)
+})
+
+test("planSaveAll writes a key into every copy in one write, never the icon", () => {
+  const plan = S.planSaveAll(S.serialize(cfg()), { iconScale: 110, icon: "omarchy.audio" })
+  const next = JSON.parse(plan.next)
+  assert.strictEqual(next.bar.layout.left[0].iconScale, 110)
+  assert.strictEqual(next.bar.layout.right[1].iconScale, 110)
+  assert.strictEqual(next.bar.layout.left[0].icon, "omarchy.menu")
+  assert.strictEqual(next.bar.layout.left[1].iconScale, undefined, "other widgets untouched")
+  assert.strictEqual(S.planSaveAll("{nope", { iconScale: 1 }).error, "invalid")
 })

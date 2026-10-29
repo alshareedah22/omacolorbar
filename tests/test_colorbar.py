@@ -324,3 +324,50 @@ class ManifestSyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BindTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "bindings.lua")
+        self.original = "-- my bindings\no.bind(\"SUPER + H\", nil, \"voxtype\")\n"
+        with open(self.path, "w") as f:
+            f.write(self.original)
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True)
+
+    def read(self):
+        with open(self.path) as f:
+            return f.read()
+
+    def test_bind_then_unbind_is_byte_identical(self):
+        self.assertEqual(self.run_cli("bind", self.path).returncode, 0)
+        text = self.read()
+        self.assertIn('o.bind("SUPER + CTRL + ALT + C", "OmaColorBar settings", '
+                      '"qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings")', text)
+        self.assertTrue(text.startswith(self.original))
+        self.assertEqual(self.run_cli("unbind", self.path).returncode, 0)
+        self.assertEqual(self.read(), self.original)
+
+    def test_bind_twice_changes_nothing(self):
+        self.run_cli("bind", self.path)
+        once = self.read()
+        result = self.run_cli("bind", self.path)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("already", result.stdout)
+        self.assertEqual(self.read(), once)
+
+    def test_bind_refuses_a_key_already_in_use(self):
+        with open(self.path, "a") as f:
+            f.write('o.bind("SUPER + CTRL + ALT + C", "Mine", "foo")\n')
+        before = self.read()
+        result = self.run_cli("bind", self.path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.read(), before)
+
+    def test_unbind_without_binding_changes_nothing(self):
+        result = self.run_cli("unbind", self.path)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(self.read(), self.original)

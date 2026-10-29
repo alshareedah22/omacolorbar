@@ -10,6 +10,29 @@ var SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarch
   "omarchy.microphone", "omarchy.power", "omarchy.monitor", "omarchy.system-update",
   "omarchy.agents", "omarchy.tailscale", "omarchy.tray", "omarchy.weather"]
 
+// Logos the menu copy can show (menuLogo). Omarchy and Arch are the 1.0 drawings; the
+// distro logos come from tools/make_distro_logos.py, in the same order. `themed` logos are
+// black brands, drawn in the bar's text color so they show on a dark bar.
+var LOGOS = [
+  { name: "Omarchy", file: "menu-omarchy" }, { name: "Arch", file: "menu-arch" },
+  { name: "Debian", file: "distro-debian" }, { name: "Ubuntu", file: "distro-ubuntu" },
+  { name: "Fedora", file: "distro-fedora" }, { name: "Linux Mint", file: "distro-linuxmint" },
+  { name: "openSUSE", file: "distro-opensuse" }, { name: "Manjaro", file: "distro-manjaro" },
+  { name: "EndeavourOS", file: "distro-endeavouros" }, { name: "Gentoo", file: "distro-gentoo" },
+  { name: "Void", file: "distro-voidlinux" }, { name: "NixOS", file: "distro-nixos" },
+  { name: "Alpine", file: "distro-alpinelinux" }, { name: "Pop!_OS", file: "distro-popos" },
+  { name: "elementary OS", file: "distro-elementary" }, { name: "Zorin OS", file: "distro-zorin" },
+  { name: "Kali", file: "distro-kalilinux" }, { name: "Rocky Linux", file: "distro-rockylinux" },
+  { name: "AlmaLinux", file: "distro-almalinux", themed: true }, { name: "Red Hat", file: "distro-redhat" },
+  { name: "CentOS", file: "distro-centos" }, { name: "Slackware", file: "distro-slackware", themed: true },
+  { name: "Tux", file: "distro-linux" }
+]
+
+function logoFor(name) {
+  for (var i = 0; i < LOGOS.length; i++) if (LOGOS[i].name === name) return LOGOS[i]
+  return LOGOS[0]
+}
+
 function svg(name) { return { kind: "svg", name: name } }
 function level(shape, n) { return { kind: "level", shape: shape, level: n } }
 
@@ -96,8 +119,10 @@ function withLabel(drawing, label) {
 
 function drawingFor(hostId, text, options) {
   var o = options || {}
-  if (hostId === "omarchy.menu")
-    return { kind: "svg", name: o.menuLogo === "Arch" ? "menu-arch" : "menu-omarchy", label: "" }
+  if (hostId === "omarchy.menu") {
+    var logo = logoFor(o.menuLogo)
+    return { kind: "svg", name: logo.file, label: "", themed: logo.themed === true }
+  }
   if (hostId === "omarchy.tailscale")
     return TAILSCALE_STATES.indexOf(o.tailscale) !== -1 ? { kind: "svg", name: "tailscale-" + o.tailscale, label: "" } : null
   var p = split(text)
@@ -116,7 +141,7 @@ function drawingFor(hostId, text, options) {
 }
 
 function svgNames() {
-  var names = ["menu-omarchy", "menu-arch", "warning"]
+  var names = LOGOS.map(function(l) { return l.file }).concat(["warning"])
   TAILSCALE_STATES.forEach(function(s) { names.push("tailscale-" + s) })
   for (var id in GLYPHS)
     for (var key in GLYPHS[id])

@@ -8,6 +8,9 @@
                                          backup needed (writes a timestamped safety copy first)
   colorbar restore [shell.json]          put the swap backup back as the whole file, discarding
                                          every change made since (prefer unswap)
+  colorbar bind [bindings.lua]           add SUPER+CTRL+ALT+C (open the settings panel) to
+                                         ~/.config/hypr/bindings.lua
+  colorbar unbind [bindings.lua]         remove that binding again
 
 A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps the
 settings of a widget that is not in the layout. The copy reads them from there; the hosted
@@ -24,6 +27,11 @@ SUPPORTED = ["omarchy.menu", "omarchy.network", "omarchy.bluetooth", "omarchy.au
              "omarchy.agents", "omarchy.tailscale", "omarchy.tray", "omarchy.weather"]
 DEFAULT = os.path.expanduser("~/.config/omarchy/shell.json")
 SUFFIX = ".omacolorbar-backup"
+BINDINGS = os.path.expanduser("~/.config/hypr/bindings.lua")
+KEYS = "SUPER + CTRL + ALT + C"
+MARK = "-- OmaColorBar settings panel (colorbar unbind removes these two lines)\n"
+BIND = ('o.bind("' + KEYS + '", "OmaColorBar settings", '
+        '"qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings")\n')
 
 
 def swapped(config):
@@ -200,19 +208,55 @@ def restore(path):
     print("restored the original; any changes made since the swap, including settings Omarchy saved, were replaced by the backup")
 
 
+def reload_if_live(path):
+    # Only the live file: tests and other paths never touch the running Hyprland.
+    if path == os.path.realpath(BINDINGS):
+        os.system("hyprctl reload >/dev/null 2>&1")
+
+
+def bind(path):
+    with open(path) as f:
+        text = f.read()
+    if MARK + BIND in text:
+        print("already bound: SUPER+CTRL+ALT+C opens the OmaColorBar settings")
+        return
+    if '"' + KEYS + '"' in text:
+        fail(f"{KEYS} is already bound in {path}; nothing was changed")
+    sep = "" if text == "" or text.endswith("\n") else "\n"
+    write_atomic(path, (text + sep + MARK + BIND).encode(), os.stat(path).st_mode & 0o7777)
+    reload_if_live(path)
+    print("bound: SUPER+CTRL+ALT+C opens the OmaColorBar settings ('colorbar unbind' removes it)")
+
+
+def unbind(path):
+    with open(path) as f:
+        text = f.read()
+    if MARK + BIND not in text:
+        print("not bound; nothing to remove")
+        return
+    write_atomic(path, text.replace(MARK + BIND, "", 1).encode(), os.stat(path).st_mode & 0o7777)
+    reload_if_live(path)
+    print("unbound SUPER+CTRL+ALT+C")
+
+
 def main(argv):
     args = [a for a in argv if not a.startswith("--")]
     force = "--force" in argv
-    if not args or args[0] not in ("swap", "restore", "unswap"):
+    if not args or args[0] not in ("swap", "restore", "unswap", "bind", "unbind"):
         print(__doc__.strip())
         sys.exit(2)
-    path = os.path.realpath(args[1] if len(args) > 1 else DEFAULT)
+    default = BINDINGS if args[0] in ("bind", "unbind") else DEFAULT
+    path = os.path.realpath(args[1] if len(args) > 1 else default)
     if not os.path.exists(path):
         fail(f"no file at {path}")
     if args[0] == "swap":
         swap(path, force)
     elif args[0] == "unswap":
         unswap(path)
+    elif args[0] == "bind":
+        bind(path)
+    elif args[0] == "unbind":
+        unbind(path)
     else:
         restore(path)
 

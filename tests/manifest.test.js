@@ -17,12 +17,15 @@ test("settings schema has icon and menuLogo with their defaults", () => {
   const byKey = Object.fromEntries(manifest.barWidget.schema.map(s => [s.key, s]))
   assert.strictEqual(byKey.icon.type, "enum")
   assert.strictEqual(byKey.icon.defaultValue, "omarchy.network")
-  assert.deepStrictEqual(byKey.menuLogo.options, ["Omarchy", "Arch"])
+  assert.deepStrictEqual(byKey.menuLogo.options.slice(0, 2), ["Omarchy", "Arch"])
+  assert.ok(byKey.menuLogo.options.includes("Debian") && byKey.menuLogo.options.includes("Tux"))
+  assert.strictEqual(byKey.iconScale.defaultValue, 100)
+  assert.strictEqual(manifest.barWidget.defaults.iconScale, 100)
   assert.strictEqual(manifest.barWidget.defaults.menuLogo, "Omarchy")
 })
 
-test("version 1.2.0", () => {
-  assert.strictEqual(manifest.version, "1.2.0")
+test("version 1.3.0", () => {
+  assert.strictEqual(manifest.version, "1.3.0")
 })
 
 test("open-apps settings in the schema with their defaults", () => {

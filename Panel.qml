@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Window
 import Quickshell
 import Quickshell.Io
@@ -26,12 +27,18 @@ Item {
 
   readonly property string hostId: String(setting("icon", "omarchy.network"))
   readonly property string menuLogo: String(setting("menuLogo", "Omarchy"))
+  readonly property real iconScale: Math.max(80, Math.min(130, Number(setting("iconScale", 100)) || 100)) / 100
   readonly property bool supported: Icons.SUPPORTED.indexOf(hostId) !== -1
   // How the hosted widget's icons are swapped (see the spec's adapter table).
   readonly property string adapter: hostId === "omarchy.tray" ? "tray" : "button"
 
   // The registry reaches a plugin only through its own service (Service.qml).
   property var registry: null
+  property var service: null
+  readonly property string screenName: QsWindow.window && QsWindow.window.screen ? String(QsWindow.window.screen.name) : ""
+  // For the settings panel of another copy (Open apps tab).
+  readonly property var openApps: openRow.apps
+  readonly property var hiddenStore: openRow.hiddenStore
   property int registryAttempts: 0
   readonly property bool registryLost: registry === null && registryAttempts >= 20
   readonly property var hostComponent: componentFor(hostId, registry ? registry.revision : 0)
@@ -60,9 +67,10 @@ Item {
   implicitHeight: problem !== "" ? warning.implicitHeight : slot.implicitHeight
 
   function resolveRegistry() {
+    var own = bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor(moduleName) : null
+    if (own && service !== own) service = own
     var direct = bar && bar.barWidgetRegistry ? bar.barWidgetRegistry : null
     if (direct) { registry = direct; return }
-    var own = bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor(moduleName) : null
     registry = own && own.barWidgetRegistry ? own.barWidgetRegistry : null
   }
 
@@ -146,11 +154,29 @@ Item {
   onHostSettingsChanged: if (loader.item && "settings" in loader.item) loader.item.settings = hostSettings
   onDuplicateChanged: markDuplicate()
   Component.onCompleted: resolveRegistry()
+  // A save rebuilt the bar: the copy that replaces the panel's owner opens it again.
+  onServiceChanged: if (service) { service.register(root); claimPending() }
+  onScreenNameChanged: claimPending()
+  property string reopenTab: ""
+  function claimPending() {
+    if (!service || screenName === "") return
+    var tab = service.takePending(root)
+    if (tab === "") return
+    reopenTab = tab
+    reopenTimer.restart()
+  }
+  // Wait for the rebuilt bar to settle (widths change with the icon size) so the panel
+  // anchors where it was, not where the copy sat mid-layout.
+  Timer {
+    id: reopenTimer
+    interval: 250
+    onTriggered: settingsPanel.show(root.reopenTab)
+  }
 
   Timer {
     interval: 250
     repeat: true
-    running: root.registry === null && root.registryAttempts < 20
+    running: (root.registry === null || root.service === null) && root.registryAttempts < 20
     onTriggered: { root.registryAttempts++; root.resolveRegistry() }
   }
 
@@ -179,9 +205,11 @@ Item {
     id: glyphOverlay
     Image {
       anchors.centerIn: parent
-      width: Style.bar.iconCanvas
-      height: Style.bar.iconCanvas
+      width: Style.bar.iconCanvas * root.iconScale
+      height: Style.bar.iconCanvas * root.iconScale
       source: root.drawingSource
+      layer.enabled: root.drawing !== null && root.drawing.themed === true
+      layer.effect: MultiEffect { brightness: 1.0; colorization: 1.0; colorizationColor: root.bar ? root.bar.foreground : Color.foreground }
       sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
       sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
       fillMode: Image.PreserveAspectFit
@@ -227,8 +255,8 @@ Item {
         }
 
         Image {
-          width: icon.height
-          height: icon.height
+          width: icon.height * root.iconScale
+          height: icon.height * root.iconScale
           source: root.drawingSource
           sourceSize.width: width * Math.max(2, Screen.devicePixelRatio)
           sourceSize.height: height * Math.max(2, Screen.devicePixelRatio)
@@ -330,7 +358,10 @@ Item {
   }
 
   onHideTrayChevronChanged: syncTrayChevron()
-  Component.onDestruction: if (trayChevronItem) try { trayChevronItem.visible = true } catch (e) {}
+  Component.onDestruction: {
+    if (service) service.unregister(root)
+    if (trayChevronItem) try { trayChevronItem.visible = true } catch (e) {}
+  }
 
   Timer {
     id: chevronRetry
@@ -442,7 +473,7 @@ Item {
       showTerminals: root.setting("showTerminals", false) === true
       manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
       trayKeys: trayAdapter.shownKeys
-      settingsOpen: settingsCard.open
+      settingsOpen: settingsPanel.open
     }
 
     // The group's one `<`: same glyph and size as Omarchy's. Collapsed it sits where the
@@ -482,29 +513,37 @@ Item {
     }
   }
 
-  // Middle-click opens this copy's settings card. Microphone and agents use middle-click
-  // themselves, so on those two the card needs Shift+middle-click and plain middle-click
-  // goes to the widget. Only the middle button is taken: left/right clicks, scroll and
-  // hover still reach the hosted widget.
+  // Middle-click opens the settings panel. Microphone and agents use middle-click
+  // themselves, so on those two the panel needs Shift+middle-click and plain middle-click
+  // goes to the widget. On the logo (menu) copy right-click opens the panel too, in place of
+  // Omarchy's own right-click there (open a terminal, still on SUPER+RETURN). Left clicks,
+  // scroll and hover still reach the hosted widget.
   readonly property bool hostUsesMiddle: hostId === "omarchy.microphone" || hostId === "omarchy.agents"
+  readonly property bool isMenu: hostId === "omarchy.menu"
 
-  function close() { settingsCard.open = false }
+  function close() { settingsPanel.open = false }
+  function openSettings(tab) { settingsPanel.show(tab) }
+  function toggleSettings(tab) {
+    if (settingsPanel.open) settingsPanel.open = false
+    else settingsPanel.show(tab)
+  }
 
   MouseArea {
     anchors.fill: parent
     z: 10
-    acceptedButtons: Qt.MiddleButton
+    acceptedButtons: root.isMenu ? (Qt.MiddleButton | Qt.RightButton) : Qt.MiddleButton
     onPressed: function(mouse) {
+      if (mouse.button === Qt.RightButton) { root.toggleSettings(""); return }
       var shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
-      // Our `<` leads the group: over it and the shown open apps the card opens; over the
+      // Our `<` leads the group: over it and the shown open apps the panel opens; over the
       // tray's apps and pinned items (or the empty collapsed area) the click goes on.
       if (root.ownChevron) {
         if (!shift && !root.overOwn(mouse.x)) { mouse.accepted = false; return }
-        settingsCard.open = !settingsCard.open
+        root.toggleSettings("")
         return
       }
       // The hosted tray uses plain middle-click itself (secondary activate); only the
-      // open-apps area opens the card without Shift. On a horizontal bar that area is left
+      // open-apps area opens the panel without Shift. On a horizontal bar that area is left
       // of the tray (the drawer) and takes nothing while collapsed; on a vertical bar the
       // row is below the tray.
       var overHosted = root.adapter === "tray" && (root.verticalBar ? mouse.y < root.hostedHeight
@@ -514,19 +553,15 @@ Item {
         mouse.accepted = false
         return
       }
-      settingsCard.open = !settingsCard.open
+      root.toggleSettings("")
     }
   }
 
-  SettingsCard {
-    id: settingsCard
+  SettingsPanel {
+    id: settingsPanel
     anchorItem: root
     bar: root.bar
     owner: root
-    icon: root.hostId
-    settings: root.settings
-    hiddenStore: openRow.hiddenStore
-    apps: openRow.apps
-    manualHidden: Array.isArray(root.setting("hiddenApps", [])) ? root.setting("hiddenApps", []) : []
+    copy: root
   }
 }
