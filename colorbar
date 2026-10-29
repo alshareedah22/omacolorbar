@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """colorbar: swap Omarchy's built-in bar widgets for OmaColorBar copies, or put them back.
 
+  colorbar setup [shell.json]            what the plugin runs by itself when it is first enabled:
+                                         swap every supported built-in and add the settings key,
+                                         only while the layout holds just the bare entry that
+                                         `omarchy plugin enable` puts there (no other copy yet)
   colorbar swap [shell.json] [--force]   back up shell.json, then swap every supported
                                          built-in for a color copy in the same place
   colorbar unswap [shell.json]           the gentle undo: turn every OmaColorBar copy back into its
@@ -15,6 +19,7 @@
 A swapped widget's own settings move to its plugins[] entry, where Omarchy keeps the
 settings of a widget that is not in the layout. The copy reads them from there; the hosted
 widget cannot save inline changes itself (the shell scopes those saves to the calling plugin)."""
+import fcntl
 import json
 import os
 import sys
@@ -118,6 +123,96 @@ def swap(path, force):
         print(f"kept the existing backup at {backup}; it holds the original, and the current file was swapped")
     else:
         print(f"swapped; the original is at {backup}")
+
+
+def is_bare(entry):
+    return isinstance(entry, dict) and entry.get("id") == PLUGIN and not entry.get("icon")
+
+
+def layout_entries(config):
+    bar = config.get("bar") if isinstance(config, dict) else None
+    layout = bar.get("layout") if isinstance(bar, dict) else None
+    if not isinstance(layout, dict):
+        return []
+    return [e for s in ("left", "center", "right") if isinstance(layout.get(s), list) for e in layout[s]]
+
+
+def needs_setup(config):
+    """A fresh enable: the bare entry Omarchy adds is there, and no copy has an icon yet."""
+    entries = layout_entries(config)
+    copies = [e for e in entries if isinstance(e, dict) and e.get("id") == PLUGIN]
+    return bool(copies) and all(is_bare(e) for e in copies)
+
+
+def without_bare(config):
+    out = json.loads(json.dumps(config))
+    layout = out.get("bar", {}).get("layout", {}) if isinstance(out.get("bar"), dict) else {}
+    for section in ("left", "center", "right"):
+        if isinstance(layout.get(section), list):
+            layout[section] = [e for e in layout[section] if not is_bare(e)]
+    return out
+
+
+def set_up(config):
+    """The swapped layout for a fresh enable. The bare entry Omarchy placed becomes the network
+    copy when the bar had no network widget, and is dropped otherwise."""
+    out = swapped(config)
+    network = any(isinstance(e, dict) and e.get("id") == PLUGIN and e.get("icon") == "omarchy.network"
+                  for e in layout_entries(out))
+    layout = out["bar"]["layout"]
+    for section in ("left", "center", "right"):
+        entries = layout.get(section)
+        if not isinstance(entries, list):
+            continue
+        kept = []
+        for entry in entries:
+            if is_bare(entry):
+                if network:
+                    continue
+                entry = {"id": PLUGIN, "icon": "omarchy.network"}
+                network = True
+            kept.append(entry)
+        layout[section] = kept
+    return out
+
+
+def setup(path, bindings):
+    # Every bare copy (one per monitor) and the service may start this at once.
+    folder = os.environ.get("XDG_RUNTIME_DIR") or os.path.dirname(path)
+    with open(os.path.join(folder, "omacolorbar-setup.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        set_up_locked(path, bindings)
+
+
+def set_up_locked(path, bindings):
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        config = json.loads(raw)
+    except (OSError, ValueError) as e:
+        fail(f"cannot read {path}: {e}")
+    problem = shape_problem(config)
+    if problem:
+        fail(f"{problem}; nothing was changed")
+    if not needs_setup(config):
+        print("already set up")
+        return
+    mode = os.stat(path).st_mode & 0o777
+    backup = path + SUFFIX
+    # The backup is the bar as it was before the plugin: without the bare entry, so that a
+    # restore does not set the plugin up again on the next start.
+    if not os.path.exists(backup):
+        write_atomic(backup, (json.dumps(without_bare(config), indent=2) + "\n").encode(), mode)
+    write_atomic(path, (json.dumps(set_up(config), indent=2) + "\n").encode(), mode)
+    print(f"set up: every supported widget now has a color icon; the previous bar is at {backup}")
+    if bindings and os.path.exists(bindings):
+        try:
+            with open(bindings) as f:
+                text = f.read()
+        except OSError:
+            return
+        if MARK + BIND not in text and '"' + KEYS + '"' not in text:
+            bind(bindings)
 
 
 def unswapped(config):
@@ -242,14 +337,18 @@ def unbind(path):
 def main(argv):
     args = [a for a in argv if not a.startswith("--")]
     force = "--force" in argv
-    if not args or args[0] not in ("swap", "restore", "unswap", "bind", "unbind"):
+    if not args or args[0] not in ("setup", "swap", "restore", "unswap", "bind", "unbind"):
         print(__doc__.strip())
         sys.exit(2)
     default = BINDINGS if args[0] in ("bind", "unbind") else DEFAULT
     path = os.path.realpath(args[1] if len(args) > 1 else default)
     if not os.path.exists(path):
         fail(f"no file at {path}")
-    if args[0] == "swap":
+    if args[0] == "setup":
+        # The key goes into the live bindings only when the live shell.json is set up.
+        live = path == os.path.realpath(DEFAULT)
+        setup(path, os.path.realpath(BINDINGS) if live else None)
+    elif args[0] == "swap":
         swap(path, force)
     elif args[0] == "unswap":
         unswap(path)

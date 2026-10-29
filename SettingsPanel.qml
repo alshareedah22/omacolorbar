@@ -26,6 +26,7 @@ PopupCard {
   property string message: ""
   property var pendingSwitch: null      // {icon, value} waiting for the Shift note to be confirmed
   property string search: ""
+  property string logoSearch: ""
   property bool backupFailed: false
   property bool writeFailed: false
 
@@ -336,10 +337,17 @@ PopupCard {
 
       Caption { visible: panel.hasMenu; text: "Logo" }
 
+      TextField {
+        visible: panel.hasMenu
+        width: parent.width
+        placeholderText: "Search " + Icons.LOGOS.length + " logos"
+        onTextChanged: panel.logoSearch = text.toLowerCase()
+      }
+
       Grid {
         id: logoGrid
         visible: panel.hasMenu
-        columns: 5
+        columns: 7
         spacing: Style.space(6)
         readonly property real tile: (column.width - spacing * (columns - 1)) / columns
         readonly property string current: Icons.logoFor(panel.setting("omarchy.menu", "menuLogo", "Omarchy")).name
@@ -349,6 +357,7 @@ PopupCard {
           delegate: Rectangle {
             required property var modelData
             readonly property bool chosen: modelData.name === logoGrid.current
+            visible: panel.logoSearch === "" || modelData.name.toLowerCase().indexOf(panel.logoSearch) !== -1
             width: logoGrid.tile
             height: logoGrid.tile
             radius: Style.space(6)

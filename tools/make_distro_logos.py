@@ -18,7 +18,14 @@ DISTROS = [
     ("nixos", "NixOS"), ("alpinelinux", "Alpine"), ("popos", "Pop!_OS"),
     ("elementary", "elementary OS"), ("zorin", "Zorin OS"), ("kalilinux", "Kali"),
     ("rockylinux", "Rocky Linux"), ("almalinux", "AlmaLinux"), ("redhat", "Red Hat"),
-    ("centos", "CentOS"), ("slackware", "Slackware"), ("linux", "Tux"),
+    ("centos", "CentOS"), ("slackware", "Slackware"), ("cachyos", "CachyOS"),
+    ("garudalinux", "Garuda"), ("artixlinux", "Artix"), ("asahilinux", "Asahi"),
+    ("nobaralinux", "Nobara"), ("kdeneon", "KDE neon"), ("kubuntu", "Kubuntu"),
+    ("xubuntu", "Xubuntu"), ("lubuntu", "Lubuntu"), ("ubuntumate", "Ubuntu MATE"),
+    ("deepin", "deepin"), ("solus", "Solus"), ("mxlinux", "MX Linux"), ("qubesos", "Qubes OS"),
+    ("tails", "Tails"), ("parrotsecurity", "Parrot"), ("raspberrypi", "Raspberry Pi"),
+    ("suse", "SUSE"), ("freebsd", "FreeBSD"), ("openbsd", "OpenBSD"), ("netbsd", "NetBSD"),
+    ("linux", "Tux"),
 ]
 
 
@@ -29,7 +36,8 @@ def slug_of(icon):
 
 
 def main(package, out):
-    data = json.load(open(os.path.join(package, "_data", "simple-icons.json")))
+    data_dir = "data" if os.path.isdir(os.path.join(package, "data")) else "_data"
+    data = json.load(open(os.path.join(package, data_dir, "simple-icons.json")))
     icons = data["icons"] if isinstance(data, dict) else data
     by_slug = {slug_of(i): i for i in icons}
     for slug, _name in DISTROS:

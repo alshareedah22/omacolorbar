@@ -4,6 +4,12 @@ Color icons for Omarchy's built-in bar widgets, with color drawings for weather,
 
 ![OmaColorBar: color icons in the Omarchy bar](preview.png)
 
+## What's new in 1.4.0
+
+- **No setup step**: `omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable` is the whole install. On first enable the plugin swaps every supported widget for its color copy and adds SUPER+CTRL+ALT+C (when that key is free) by itself.
+- **44 menu logos**: added CachyOS, Garuda, Artix, Asahi, Nobara, KDE neon, Kubuntu, Xubuntu, Lubuntu, Ubuntu MATE, deepin, Solus, MX Linux, Qubes OS, Tails, Parrot, Raspberry Pi, SUSE, FreeBSD, OpenBSD and NetBSD, from Simple Icons 16.36.0.
+- **Logo search** on the Appearance tab, and a denser grid.
+
 ## What's new in 1.3.0
 
 - **Settings panel**: one panel for every color icon, with Widgets, Appearance and Open apps tabs. It replaces the per-icon settings card.
@@ -22,7 +28,7 @@ Every copy of the widget wraps one built-in widget and only replaces its icon wi
 
 Icons:
 
-- `omarchy.menu`: the Omarchy logo in green, the Arch Linux logo in blue, or one of 21 other distro logos in their official colors. This copy is locked to the menu.
+- `omarchy.menu`: the Omarchy logo in green, the Arch Linux logo in blue, or one of 42 other distro logos in their official colors. This copy is locked to the menu.
 - `omarchy.network` (Wi-Fi, ethernet, offline)
 - `omarchy.bluetooth` (off, on, connected)
 - `omarchy.audio` (volume levels, muted, headphones)
@@ -38,17 +44,18 @@ Icons:
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/alshareedah22/omacolorbar
-~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap
+omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable
 ```
 
-`colorbar swap` saves `~/.config/omarchy/shell.json` as `shell.json.omacolorbar-backup`, then replaces each supported built-in with a color copy in the same place. Settings of a swapped widget move to its `plugins[]` entry. Restart the shell afterwards: `omarchy restart shell`.
+That is all. Enabling puts one entry on the bar, which starts the plugin, and the plugin then sets itself up:
 
-Optional: `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar bind` adds SUPER+CTRL+ALT+C to open the settings panel (see Settings panel).
+- every supported built-in widget on the bar becomes its color copy in the same place (its settings move to its `plugins[]` entry);
+- the bar before the change is saved as `~/.config/omarchy/shell.json.omacolorbar-backup`;
+- SUPER+CTRL+ALT+C opens the settings panel, added to `~/.config/hypr/bindings.lua` only if that key is free (`colorbar unbind` removes it).
 
-Do not use `--enable` on `plugin add`: it puts a bare `blackcode.omacolorbar` entry (default network icon) on the bar, and the swap then adds a real network copy too. If you already enabled it, remove the bare `blackcode.omacolorbar` entry (the one without `icon`).
+The setup runs only on that first enable, while no color copy is on the bar yet. Later changes, an `unswap`, or a widget you add by hand are never redone.
 
-`colorbar swap` and `colorbar restore` take an optional path to a `shell.json` (default `~/.config/omarchy/shell.json`), for example `colorbar swap ~/test/shell.json`. `swap` changes nothing, and writes no backup, when the layout has no supported built-in.
+Manual setup is still there: `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap` swaps a layout, `colorbar bind` adds the key. `colorbar swap` and `colorbar restore` take an optional path to a `shell.json` (default `~/.config/omarchy/shell.json`), for example `colorbar swap ~/test/shell.json`. `swap` changes nothing, and writes no backup, when the layout has no supported built-in.
 
 ## Updating
 
@@ -60,6 +67,10 @@ omarchy restart shell
 ```
 
 `omarchy plugin update` shows the changes and asks before applying them (add `--yes` to skip the question). Without the Omarchy command, `git -C ~/.config/omarchy/plugins/blackcode.omacolorbar pull` does the same. Then follow the note for the version you came from.
+
+### From 1.3.0
+
+Nothing to do: the new logos appear on the Appearance tab.
 
 ### From 1.2.0
 
@@ -119,7 +130,7 @@ One panel holds the settings of every copy. Open it with:
 Tabs:
 
 - **Widgets**: every copy, grouped left / center / right, with its icon. Each one has a dropdown of widgets no other copy uses. The logo copy is locked to the menu and no other copy can become the menu. Before switching a copy to microphone or agents, the panel says how to reach the settings afterwards and asks you to confirm. **Undo last change** puts the layout from the rolling backup back. It refuses when the bar layout changed outside OmaColorBar since, or when the undo would remove the logo.
-- **Appearance**: the logo grid (23 logos) and icon size, 80 to 130 percent for every copy at once.
+- **Appearance**: the logo grid (44 logos, with a search box) and icon size, 80 to 130 percent for every copy at once.
 - **Open apps** (needs a tray copy): Open apps, Apps shown, Show terminals, and Hidden apps with each app's icon, a Show button, and a search box when more than four are hidden.
 
 Changes save at once into `~/.config/omarchy/shell.json`: only the copies concerned change. Before each save the file is copied to `~/.config/omarchy/shell.json.omacolorbar-settings-backup` (one rolling copy, separate from the `colorbar swap` backup). If a save is refused, nothing is written and the panel says why. Omarchy rebuilds the bar after each save; the panel reopens on the same tab by itself.
@@ -136,7 +147,7 @@ Changes save at once into `~/.config/omarchy/shell.json`: only the copies concer
 | `hiddenApps`    | list of desktop entry ids (for the tray copy)   | `[]`              |
 | `showTerminals` | `true`, `false` (for the tray copy)             | `false`           |
 
-Menu logo: pick it on the panel's Appearance tab, or set `"menuLogo"` on the copy set to `omarchy.menu` to one of: Omarchy, Arch, Debian, Ubuntu, Fedora, Linux Mint, openSUSE, Manjaro, EndeavourOS, Gentoo, Void, NixOS, Alpine, Pop!_OS, elementary OS, Zorin OS, Kali, Rocky Linux, AlmaLinux, Red Hat, CentOS, Slackware, Tux. An unknown name shows the Omarchy logo.
+Menu logo: pick it on the panel's Appearance tab, or set `"menuLogo"` on the copy set to `omarchy.menu` to one of: Omarchy, Arch, Debian, Ubuntu, Fedora, Linux Mint, openSUSE, Manjaro, EndeavourOS, Gentoo, Void, NixOS, Alpine, Pop!_OS, elementary OS, Zorin OS, Kali, Rocky Linux, AlmaLinux, Red Hat, CentOS, Slackware, CachyOS, Garuda, Artix, Asahi, Nobara, KDE neon, Kubuntu, Xubuntu, Lubuntu, Ubuntu MATE, deepin, Solus, MX Linux, Qubes OS, Tails, Parrot, Raspberry Pi, SUSE, FreeBSD, OpenBSD, NetBSD, Tux. An unknown name shows the Omarchy logo.
 
 Display scale: icon sizes and slot widths come from Omarchy's bar tokens, so they follow the theme and the monitor scale. Images render at the screen's pixel density (at least 2x), so they stay sharp at scale 1, 1.5 and 2.
 
@@ -211,7 +222,7 @@ python3 -I -m unittest discover -s tests -p "test_*.py"
 
 ## Trademarks
 
-The Arch Linux logo is a trademark of Arch Linux, shown unaltered in its official color. The Omarchy logo is Omarchy's. The other distro logos come from Simple Icons and are trademarks of their projects, shown unaltered in their brand colors; see `icons/LOGOS.md` for sources and the licenses some of them carry. CachyOS is not in Simple Icons, so it is not offered.
+The Arch Linux logo is a trademark of Arch Linux, shown unaltered in its official color. The Omarchy logo is Omarchy's. The other distro logos come from Simple Icons and are trademarks of their projects, shown unaltered in their brand colors; see `icons/LOGOS.md` for sources and the licenses some of them carry. 
 
 ## License
 

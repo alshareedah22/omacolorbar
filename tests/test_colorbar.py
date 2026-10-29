@@ -371,3 +371,95 @@ class BindTest(unittest.TestCase):
         result = self.run_cli("unbind", self.path)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(self.read(), self.original)
+
+
+FRESH = {
+    "bar": {"layout": {
+        "left": [{"id": "omarchy.menu"}, {"id": "omarchy.workspaces"}],
+        "center": [{"id": "omarchy.clock"}, {"id": "omarchy.weather"}],
+        "right": [{"id": "omarchy.tray"}, {"id": "omarchy.network"}, {"id": "omarchy.audio", "step": 5},
+                  {"id": "blackcode.omacolorbar"}]}},
+    "plugins": [],
+}
+
+
+class SetupTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "shell.json")
+        self.bindings = os.path.join(self.dir.name, "bindings.lua")
+        with open(self.bindings, "w") as f:
+            f.write("-- mine\n")
+
+    def write(self, config):
+        with open(self.path, "w") as f:
+            json.dump(config, f)
+
+    def read(self):
+        with open(self.path) as f:
+            return json.load(f)
+
+    def test_fresh_enable_swaps_everything_and_drops_the_bare_entry(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        layout = self.read()["bar"]["layout"]
+        self.assertEqual(layout["left"], [{"id": "blackcode.omacolorbar", "icon": "omarchy.menu"}, {"id": "omarchy.workspaces"}])
+        self.assertEqual([e.get("icon", e["id"]) for e in layout["right"]], ["omarchy.tray", "omarchy.network", "omarchy.audio"])
+        self.assertIn({"id": "omarchy.audio", "step": 5}, self.read()["plugins"])
+
+    def test_bare_entry_becomes_network_when_the_bar_had_none(self):
+        config = json.loads(json.dumps(FRESH))
+        config["bar"]["layout"]["right"] = [{"id": "omarchy.audio"}, {"id": "blackcode.omacolorbar"}]
+        self.write(config)
+        colorbar.setup(self.path, self.bindings)
+        self.assertEqual(self.read()["bar"]["layout"]["right"], [
+            {"id": "blackcode.omacolorbar", "icon": "omarchy.audio"},
+            {"id": "blackcode.omacolorbar", "icon": "omarchy.network"}])
+
+    def test_backup_has_no_bare_entry_so_restore_does_not_set_up_again(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        with open(self.path + ".omacolorbar-backup") as f:
+            backup = json.load(f)
+        self.assertFalse(colorbar.needs_setup(backup))
+        self.assertNotIn({"id": "blackcode.omacolorbar"}, backup["bar"]["layout"]["right"])
+
+    def test_adds_the_key_when_free_and_leaves_a_taken_key_alone(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        with open(self.bindings) as f:
+            self.assertIn(colorbar.MARK + colorbar.BIND, f.read())
+        self.write(FRESH)
+        os.unlink(self.path + ".omacolorbar-backup")
+        taken = '-- mine\no.bind("SUPER + CTRL + ALT + C", "Mine", "foo")\n'
+        with open(self.bindings, "w") as f:
+            f.write(taken)
+        colorbar.setup(self.path, self.bindings)
+        with open(self.bindings) as f:
+            self.assertEqual(f.read(), taken)
+
+    def test_does_nothing_once_a_copy_has_an_icon(self):
+        config = json.loads(json.dumps(FRESH))
+        config["bar"]["layout"]["right"].append({"id": "blackcode.omacolorbar", "icon": "omarchy.power"})
+        self.write(config)
+        with open(self.path, "rb") as f:
+            before = f.read()
+        colorbar.setup(self.path, self.bindings)
+        with open(self.path, "rb") as f:
+            self.assertEqual(f.read(), before)
+        self.assertFalse(os.path.exists(self.path + ".omacolorbar-backup"))
+
+    def test_keeps_an_existing_backup(self):
+        self.write(FRESH)
+        with open(self.path + ".omacolorbar-backup", "w") as f:
+            f.write("original")
+        colorbar.setup(self.path, self.bindings)
+        with open(self.path + ".omacolorbar-backup") as f:
+            self.assertEqual(f.read(), "original")
+
+    def test_cli_on_another_path_never_touches_live_bindings(self):
+        self.write(FRESH)
+        r = subprocess.run([sys.executable, "-I", SCRIPT, "setup", self.path], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("bound", r.stdout)

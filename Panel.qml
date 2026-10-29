@@ -154,6 +154,19 @@ Item {
   onHostSettingsChanged: if (loader.item && "settings" in loader.item) loader.item.settings = hostSettings
   onDuplicateChanged: markDuplicate()
   Component.onCompleted: resolveRegistry()
+
+  // A copy without an icon is the bare entry `omarchy plugin enable` just placed. Omarchy
+  // starts plugin services only at shell start, so this copy runs the first setup itself
+  // (colorbar setup is a no-op once any copy has an icon). The delay lets the bar inject
+  // `settings` first.
+  property Timer setupTimer: Timer {
+    interval: 1000
+    running: true
+    onTriggered: if (String(root.setting("icon", "")) === "") root.setupRun.running = true
+  }
+  property Process setupRun: Process {
+    command: ["python3", "-I", decodeURIComponent(String(Qt.resolvedUrl("colorbar")).replace(/^file:\/\//, "")), "setup"]
+  }
   // A save rebuilt the bar: the copy that replaces the panel's owner opens it again.
   onServiceChanged: if (service) { service.register(root); claimPending() }
   onScreenNameChanged: claimPending()
