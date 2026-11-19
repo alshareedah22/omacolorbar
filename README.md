@@ -25,7 +25,7 @@ Color icons for Omarchy's built-in bar widgets, with color drawings for weather,
 
 ## What's new in 1.4.0
 
-- **No setup step**: `omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable` is the whole install. On first enable the plugin swaps every supported widget for its color copy and adds SUPER+CTRL+ALT+C (when that key is free) by itself.
+- **No setup step**: `omarchy plugin add https://github.com/blackcodesh/omacolorbar --enable` is the whole install. On first enable the plugin swaps every supported widget for its color copy and adds SUPER+CTRL+ALT+C (when that key is free) by itself.
 - **44 menu logos**: added CachyOS, Garuda, Artix, Asahi, Nobara, KDE neon, Kubuntu, Xubuntu, Lubuntu, Ubuntu MATE, deepin, Solus, MX Linux, Qubes OS, Tails, Parrot, Raspberry Pi, SUSE, FreeBSD, OpenBSD and NetBSD, from Simple Icons 16.36.0.
 - **Logo search** on the Appearance tab, and a denser grid.
 
@@ -63,7 +63,7 @@ Icons:
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable
+omarchy plugin add https://github.com/blackcodesh/omacolorbar --enable
 ```
 
 That is all. Enabling puts one entry on the bar, which starts the plugin, and the plugin then sets itself up:
