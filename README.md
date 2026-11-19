@@ -76,6 +76,8 @@ The setup runs only once, on that first enable, while no color copy is on the ba
 
 Manual setup is still there: `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap` swaps a layout, `colorbar bind` adds the key. `colorbar swap` and `colorbar restore` take an optional path to a `shell.json` (default `~/.config/omarchy/shell.json`), for example `colorbar swap ~/test/shell.json`. `swap` changes nothing, and writes no backup, when the layout has no supported built-in.
 
+Also listed in the Omarchy plugin marketplace (https://plugins.omarchy.org): search for **OmaColorBar**.
+
 ## Updating
 
 Already using OmaColorBar? Update in place; your bar layout and settings are kept.
