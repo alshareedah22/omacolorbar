@@ -1526,7 +1526,7 @@ Add `{"id":"omarchy.audio"}` to the right section temporarily (backup first), re
 
 - [ ] **Step 6: Write `README.md`**
 
-Sections, in this order: title and one-line description; screenshot (`preview.png`); "What it does" (hosts the real widget, popups unchanged, list of phase 1 icons); "Install" (`omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable`, then `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap`); "Settings" (Icon, Menu logo; built-in settings in `plugins[]`); "Undo" (`colorbar restore`, or set the entries back by hand); "When Omarchy changes" (unknown glyph → original glyph; missing widget → warning icon); "Known limits" (results of Steps 3–5); "Tests" (`node --test tests/`, `python3 -I -m unittest discover -s tests -p "test_*.py"`); "Trademarks" (the Arch Linux logo is a trademark of Arch Linux, shown unaltered in its official color; the Omarchy logo is Omarchy's); License MIT.
+Sections, in this order: title and one-line description; screenshot (`preview.png`); "What it does" (hosts the real widget, popups unchanged, list of phase 1 icons); "Install" (`omarchy plugin add https://github.com/blackcodesh/omacolorbar --enable`, then `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap`); "Settings" (Icon, Menu logo; built-in settings in `plugins[]`); "Undo" (`colorbar restore`, or set the entries back by hand); "When Omarchy changes" (unknown glyph → original glyph; missing widget → warning icon); "Known limits" (results of Steps 3–5); "Tests" (`node --test tests/`, `python3 -I -m unittest discover -s tests -p "test_*.py"`); "Trademarks" (the Arch Linux logo is a trademark of Arch Linux, shown unaltered in its official color; the Omarchy logo is Omarchy's); License MIT.
 
 - [ ] **Step 7: Commit**
 
@@ -1564,9 +1564,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 - [ ] **Step 5: Ask before publishing**
 
-Ask the user to confirm: create the public GitHub repo `alshareedah22/omacolorbar` and push; then open the marketplace submission with the new-plugin issue form. Only after a yes:
+Ask the user to confirm: create the public GitHub repo `blackcodesh/omacolorbar` and push; then open the marketplace submission with the new-plugin issue form. Only after a yes:
 
 ```bash
-gh repo create alshareedah22/omacolorbar --public --source . --push --description "Color icons for Omarchy's built-in bar widgets"
+gh repo create blackcodesh/omacolorbar --public --source . --push --description "Color icons for Omarchy's built-in bar widgets"
 ```
 Then read the marketplace's `SUBMISSION.md` (`gh api repos/omacom/omarchy-plugin-marketplace/contents/SUBMISSION.md -H "Accept: application/vnd.github.raw"`), fill the submission form exactly as it asks, and watch the bot's validation and security baseline on the issue.

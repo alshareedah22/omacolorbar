@@ -182,7 +182,7 @@ popup keyboard shortcuts (open question 1).
 
 ## Release
 
-Repo `alshareedah22/omacolorbar`, MIT. README with screenshots, setup (`colorbar swap`
+Repo `blackcodesh/omacolorbar`, MIT. README with screenshots, setup (`colorbar swap`
 or adding copies in Omarchy's bar settings) and the open questions' outcomes. Poster in
 the same laptop style as the other BlackCode posters. Version 1.0.0 = phase 1, submitted
 to the marketplace; 1.1.0 = phase 2.
