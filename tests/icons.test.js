@@ -183,6 +183,15 @@ test("every indicator glyph in the installed Omarchy has a drawing", { skip: !in
   assert.deepStrictEqual(missing, [])
 })
 
+test("Omarchy 4.5 glyphs: limited network and the new indicators", () => {
+  assert.strictEqual(I.drawingFor("omarchy.network", g("f0929"), {}).name, "wifi-limited")
+  assert.strictEqual(I.drawingFor("omarchy.network", g("f0202"), {}).name, "ethernet-limited")
+  assert.strictEqual(I.indicatorDrawing(g("f07f5"), true).name, "ind-passwordlesssudo")
+  assert.strictEqual(I.indicatorDrawing(g("f07f5"), false).name, "ind-passwordlesssudo-off")
+  assert.strictEqual(I.indicatorDrawing(g("f08b9"), true).name, "ind-remotesession")
+  assert.strictEqual(I.indicatorDrawing(g("ef59"), true).name, "ind-stayawake")
+})
+
 // Qt's V4 engine splits strings into UTF-16 units, so a glyph above U+FFFF reaches
 // split() as two surrogates. These literals are explicit surrogate pairs.
 test("high-plane glyphs written as surrogate pairs", () => {

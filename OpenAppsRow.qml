@@ -211,6 +211,7 @@ Item {
       radius: height / 2
       color: row.badgeColor
       Text {
+        textFormat: Text.PlainText
         id: count
         anchors.centerIn: parent
         text: String(appIcon.group.count)
@@ -273,6 +274,7 @@ Item {
         height: visible ? row.slot : 0
         readonly property bool tooltipHovered: visible && moreMouse.containsMouse && !row.cardOpen
         Text {
+          textFormat: Text.PlainText
           anchors.centerIn: parent
           text: "+" + row.overflow.length
           color: row.foreground
@@ -343,6 +345,7 @@ Item {
               fillMode: Image.PreserveAspectFit
             }
             Text {
+              textFormat: Text.PlainText
               text: row.nameOf(modelData)
               color: row.foreground
               font.family: row.fontFamily
@@ -378,6 +381,7 @@ Item {
       spacing: Style.space(6)
 
       Text {
+        textFormat: Text.PlainText
         visible: row.menuGroup !== null
         text: row.menuGroup ? "Hide " + row.menuGroup.name + " from bar" : ""
         color: row.foreground
@@ -391,6 +395,7 @@ Item {
       }
 
       Text {
+        textFormat: Text.PlainText
         text: "Hidden apps (" + row.hiddenAll.length + ")"
         color: Qt.darker(row.foreground, 1.4)
         font.family: row.fontFamily
@@ -399,6 +404,7 @@ Item {
       }
 
       Text {
+        textFormat: Text.PlainText
         visible: row.hiddenAll.length === 0
         text: "None"
         color: Qt.darker(row.foreground, 1.5)
@@ -410,6 +416,7 @@ Item {
       Repeater {
         model: row.hiddenAll
         delegate: Text {
+          textFormat: Text.PlainText
           required property var modelData
           readonly property bool manual: (row.manualHidden || []).indexOf(modelData) !== -1
           readonly property var app: row.apps.filter(function(a) { return String(a.desktopId) === modelData })[0]

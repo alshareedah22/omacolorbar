@@ -186,6 +186,7 @@ PopupCard {
   contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
   component Caption: Text {
+    textFormat: Text.PlainText
     color: panel.muted
     font.family: panel.fontFamily
     font.pixelSize: Style.font.caption
@@ -193,6 +194,7 @@ PopupCard {
   }
 
   component Body: Text {
+    textFormat: Text.PlainText
     color: panel.foreground
     font.family: panel.fontFamily
     font.pixelSize: Style.font.body
@@ -224,6 +226,7 @@ PopupCard {
         source: Qt.resolvedUrl("icons/menu-omarchy.svg")
       }
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         text: "OmaColorBar"
         color: panel.foreground
@@ -374,6 +377,7 @@ PopupCard {
               themed: parent.modelData.themed === true
             }
             Text {
+              textFormat: Text.PlainText
               anchors.horizontalCenter: parent.horizontalCenter
               anchors.bottom: parent.bottom
               anchors.bottomMargin: parent.height * 0.08
@@ -486,6 +490,7 @@ PopupCard {
             smooth: true
           }
           Text {
+            textFormat: Text.PlainText
             id: appName
             anchors.left: appIcon.right
             anchors.leftMargin: Style.space(8)
@@ -510,6 +515,7 @@ PopupCard {
     }
 
     Text {
+      textFormat: Text.PlainText
       visible: panel.message !== ""
       width: parent.width
       wrapMode: Text.Wrap
@@ -526,6 +532,7 @@ PopupCard {
         onClicked: { Quickshell.execDetached(["omarchy-launch-editor", panel.shellPath]); panel.close() }
       }
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         text: "SUPER+CTRL+ALT+C"
         color: panel.muted

@@ -51,7 +51,9 @@ var GLYPHS = {
   "omarchy.network": {
     f092f: level("wifi", 0), f091f: level("wifi", 1), f0922: level("wifi", 2),
     f0925: level("wifi", 3), f0928: level("wifi", 4),
-    f0200: svg("ethernet"), f092e: svg("offline")
+    f0200: svg("ethernet"), f092e: svg("offline"),
+    // Omarchy 4.5: captive portal or limited connectivity (panels/network/Model.js connectionIcon).
+    f0929: svg("wifi-limited"), f0202: svg("ethernet-limited")
   },
   "omarchy.bluetooth": { f00b2: svg("bt-off"), f00b1: svg("bt-connected"), f00af: svg("bt-on") },
   "omarchy.audio": {
@@ -87,7 +89,9 @@ var TAILSCALE_STATES = ["on", "off", "login"]
 // kept for a later indicators plugin.
 var INDICATORS = {
   f0176: "ind-stayawake", f009b: "ind-dnd", f050e: "ind-nightlight", f0ec2: "ind-recording",
-  f036c: "ind-dictation", f051f: "ind-dictation", f088c: "ind-reminder"
+  f036c: "ind-dictation", f051f: "ind-dictation", f088c: "ind-reminder",
+  // Omarchy 4.5: the stay-awake glyph changed, and two indicators were added.
+  ef59: "ind-stayawake", f07f5: "ind-passwordlesssudo", f08b9: "ind-remotesession"
 }
 
 // Color when the mode is on, the gray "-off" drawing when it is off.

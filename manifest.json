@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "blackcode.omacolorbar",
   "name": "OmaColorBar",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": "BlackCode",
   "license": "MIT",
   "description": "OmaColorBar: color icons for Omarchy's built-in bar widgets, tray apps, open apps and weather. Each copy hosts the real widget, so its popup and clicks stay Omarchy's own; settings are read from plugins[]. Sets itself up when enabled. Right-click the logo or press SUPER+CTRL+ALT+C for the settings panel",

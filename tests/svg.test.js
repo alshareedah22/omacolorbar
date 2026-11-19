@@ -28,7 +28,7 @@ test("gradients use user space, the Arch logo is the official solid blue", () =>
 })
 
 test("indicator off variants are gray and match their color shapes", () => {
-  for (const base of ["stayawake", "dnd", "nightlight", "recording", "dictation", "reminder"]) {
+  for (const base of ["stayawake", "dnd", "nightlight", "recording", "dictation", "reminder", "passwordlesssudo", "remotesession"]) {
     const on = fs.readFileSync(path.join(dir, "ind-" + base + ".svg"), "utf8")
     const off = fs.readFileSync(path.join(dir, "ind-" + base + "-off.svg"), "utf8")
     assert.ok(off.includes("#6b7280") && off.includes("#9ca3af"), base)

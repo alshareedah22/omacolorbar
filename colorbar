@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """colorbar: swap Omarchy's built-in bar widgets for OmaColorBar copies, or put them back.
 
-  colorbar setup [shell.json]            what the plugin runs by itself when it is first enabled:
+  colorbar setup [shell.json] [--force]  what the plugin runs by itself when it is first enabled:
                                          swap every supported built-in and add the settings key,
                                          only while the layout holds just the bare entry that
                                          `omarchy plugin enable` puts there (no other copy yet)
+                                         and no earlier setup finished (a done-marker is kept);
+                                         --force runs it again on purpose
   colorbar swap [shell.json] [--force]   back up shell.json, then swap every supported
                                          built-in for a color copy in the same place
-  colorbar unswap [shell.json]           the gentle undo: turn every OmaColorBar copy back into its
+  colorbar unswap [shell.json] [--keep-binding]
+                                         the gentle undo: turn every OmaColorBar copy back into its
                                          built-in in the same place, keep all other changes, no
-                                         backup needed (writes a timestamped safety copy first)
+                                         backup needed (writes a timestamped safety copy first), and
+                                         remove the settings key again. Run it BEFORE
+                                         `omarchy plugin remove`
   colorbar restore [shell.json]          put the swap backup back as the whole file, discarding
-                                         every change made since (prefer unswap)
+                                         every change made since (prefer unswap); the current file
+                                         is saved as a timestamped safety copy first
   colorbar bind [bindings.lua]           add SUPER+CTRL+ALT+C (open the settings panel) to
                                          ~/.config/hypr/bindings.lua
   colorbar unbind [bindings.lua]         remove that binding again
@@ -36,12 +42,16 @@ BINDINGS = os.path.expanduser("~/.config/hypr/bindings.lua")
 KEYS = "SUPER + CTRL + ALT + C"
 MARK = "-- OmaColorBar settings panel (colorbar unbind removes these two lines)\n"
 BIND = ('o.bind("' + KEYS + '", "OmaColorBar settings", '
-        '"qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings")\n')
+        '"omarchy-shell omacolorbar toggleSettings")\n')
+# Bindings written by 1.4.0 and earlier; unbind still removes them.
+OLD_BINDS = ['o.bind("' + KEYS + '", "OmaColorBar settings", '
+             '"qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings")\n']
 
 
 def swapped(config):
     out = json.loads(json.dumps(config))
     layout = out.get("bar", {}).get("layout", {}) if isinstance(out.get("bar"), dict) else {}
+    seen = set()
     for section in ("left", "center", "right"):
         entries = layout.get(section)
         if not isinstance(entries, list):
@@ -50,6 +60,12 @@ def swapped(config):
             if not isinstance(entry, dict) or entry.get("id") not in SUPPORTED:
                 continue
             widget = entry["id"]
+            if widget in seen:
+                # Two copies of one widget would share one plugins[] entry and the settings
+                # panel refuses to edit them; the second stays the built-in.
+                print(f"colorbar: {widget} is on the bar twice; only the first was swapped", file=sys.stderr)
+                continue
+            seen.add(widget)
             entries[i] = {"id": PLUGIN, "icon": widget}
             plugins = out.setdefault("plugins", [])
             existing = next((p for p in plugins if isinstance(p, dict) and p.get("id") == widget), None)
@@ -78,6 +94,57 @@ def write_atomic(path, data, mode):
 def fail(message):
     print("colorbar: " + message, file=sys.stderr)
     sys.exit(1)
+
+
+def settle(path, raw, compute):
+    """compute(config) on raw; if the file changed meanwhile, redo it once on the new content.
+    Returns (raw, result) for the content the result was made from."""
+    result = compute(json.loads(raw))
+    try:
+        with open(path, "rb") as f:
+            now = f.read()
+    except OSError as e:
+        fail(f"cannot read {path}: {e}")
+    if now != raw:
+        try:
+            config = json.loads(now)
+        except ValueError as e:
+            fail(f"{path} changed and is no longer valid JSON ({e}); nothing was changed")
+        problem = shape_problem(config)
+        if problem:
+            fail(f"{path} changed ({problem}); nothing was changed")
+        raw, result = now, compute(config)
+    return raw, result
+
+
+def safety_copy(path, raw, mode, kind):
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    safety = f"{path}.omacolorbar-{kind}-{stamp}"
+    n = 1
+    while os.path.exists(safety):
+        n += 1
+        safety = f"{path}.omacolorbar-{kind}-{stamp}-{n}"
+    write_atomic(safety, raw, mode)
+    return safety
+
+
+def marker_path(path):
+    """Where the done-marker of a setup lives: the XDG state dir for the live shell.json,
+    next to the file for any other path (tests, other files), so those never touch the real one."""
+    if path == os.path.realpath(DEFAULT):
+        state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+        return os.path.join(state, "omacolorbar", "setup-done")
+    return path + ".omacolorbar-setup-done"
+
+
+def mark_done(path):
+    marker = marker_path(path)
+    try:
+        os.makedirs(os.path.dirname(marker), exist_ok=True)
+        with open(marker, "w") as f:
+            f.write("setup finished; `colorbar setup --force` runs it again\n")
+    except OSError as e:
+        print(f"colorbar: could not write {marker}: {e}", file=sys.stderr)
 
 
 def shape_problem(config):
@@ -109,7 +176,8 @@ def swap(path, force):
         fail(f"{problem}; nothing was changed")
     if os.path.exists(backup) and not force:
         fail(f"a backup already exists at {backup}; run restore first, or swap --force")
-    result = swapped(config)
+    raw, result = settle(path, raw, swapped)
+    config = json.loads(raw)
     if result == config:
         print("nothing to swap: no supported built-in widgets in the layout")
         return
@@ -176,15 +244,15 @@ def set_up(config):
     return out
 
 
-def setup(path, bindings):
+def setup(path, bindings, force=False):
     # Every bare copy (one per monitor) and the service may start this at once.
     folder = os.environ.get("XDG_RUNTIME_DIR") or os.path.dirname(path)
     with open(os.path.join(folder, "omacolorbar-setup.lock"), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        set_up_locked(path, bindings)
+        set_up_locked(path, bindings, force)
 
 
-def set_up_locked(path, bindings):
+def set_up_locked(path, bindings, force=False):
     try:
         with open(path, "rb") as f:
             raw = f.read()
@@ -194,16 +262,26 @@ def set_up_locked(path, bindings):
     problem = shape_problem(config)
     if problem:
         fail(f"{problem}; nothing was changed")
-    if not needs_setup(config):
+    if not force and (os.path.exists(marker_path(path)) or not needs_setup(config)):
         print("already set up")
         return
     mode = os.stat(path).st_mode & 0o777
     backup = path + SUFFIX
+    raw, result = settle(path, raw, lambda c: set_up(c) if force or needs_setup(c) else None)
+    config = json.loads(raw)
+    if result is None:
+        print("already set up")
+        return
+    if result == config:
+        print("nothing to set up: no supported built-in widgets in the layout")
+        mark_done(path)
+        return
     # The backup is the bar as it was before the plugin: without the bare entry, so that a
     # restore does not set the plugin up again on the next start.
     if not os.path.exists(backup):
         write_atomic(backup, (json.dumps(without_bare(config), indent=2) + "\n").encode(), mode)
-    write_atomic(path, (json.dumps(set_up(config), indent=2) + "\n").encode(), mode)
+    write_atomic(path, (json.dumps(result, indent=2) + "\n").encode(), mode)
+    mark_done(path)
     print(f"set up: every supported widget now has a color icon; the previous bar is at {backup}")
     if bindings and os.path.exists(bindings):
         try:
@@ -242,10 +320,17 @@ def unswapped(config):
             changes.append((section, i, entry, new))
             kept.append(new)
         layout[section] = kept
+    # swapped() may have added a plugins[] entry for the built-in. Drop it only when it holds
+    # nothing but the id (no user settings), and only for a widget this undo put back.
+    back = {new["id"] for _, _, _, new in changes if new}
+    plugins = out.get("plugins")
+    if back and isinstance(plugins, list):
+        out["plugins"] = [p for p in plugins
+                          if not (isinstance(p, dict) and p.get("id") in back and set(p) == {"id"})]
     return out, changes
 
 
-def unswap(path):
+def unswap(path, bindings=None):
     try:
         with open(path, "rb") as f:
             raw = f.read()
@@ -255,29 +340,25 @@ def unswap(path):
     problem = shape_problem(config)
     if problem:
         fail(f"{problem}; nothing was changed")
-    result, changes = unswapped(config)
+    raw, (result, changes) = settle(path, raw, unswapped)
     if not changes:
         print("nothing to unswap: no OmaColorBar copies in the layout")
-        return
-    text = json.dumps(result, indent=2) + "\n"
-    try:
-        problem = shape_problem(json.loads(text))
-    except ValueError as e:
-        problem = str(e)
-    if problem:
-        fail(f"the result did not validate ({problem}); nothing was changed")
-    mode = os.stat(path).st_mode & 0o777
-    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-    safety = f"{path}.omacolorbar-unswap-{stamp}"
-    n = 1
-    while os.path.exists(safety):
-        n += 1
-        safety = f"{path}.omacolorbar-unswap-{stamp}-{n}"
-    write_atomic(safety, raw, mode)
-    write_atomic(path, text.encode(), mode)
-    for section, i, old, new in changes:
-        print(f"{section}[{i}]: {json.dumps(old)} -> " + (json.dumps(new) if new else "removed (omarchy.network is already on the bar)"))
-    print(f"unswapped {len(changes)} entr{'y' if len(changes) == 1 else 'ies'}; the previous file is at {safety}")
+    else:
+        text = json.dumps(result, indent=2) + "\n"
+        try:
+            problem = shape_problem(json.loads(text))
+        except ValueError as e:
+            problem = str(e)
+        if problem:
+            fail(f"the result did not validate ({problem}); nothing was changed")
+        mode = os.stat(path).st_mode & 0o777
+        safety = safety_copy(path, raw, mode, "unswap")
+        write_atomic(path, text.encode(), mode)
+        for section, i, old, new in changes:
+            print(f"{section}[{i}]: {json.dumps(old)} -> " + (json.dumps(new) if new else "removed (omarchy.network is already on the bar)"))
+        print(f"unswapped {len(changes)} entr{'y' if len(changes) == 1 else 'ies'}; the previous file is at {safety}")
+    if bindings and os.path.exists(bindings):
+        unbind(bindings)
 
 
 def backup_problem(backup):
@@ -299,8 +380,16 @@ def restore(path):
     problem = backup_problem(backup)
     if problem:
         fail(f"{problem}; refusing to restore {backup}. Nothing was changed. Try 'colorbar unswap' instead")
+    try:
+        with open(path, "rb") as f:
+            current = f.read()
+        mode = os.stat(path).st_mode & 0o777
+    except OSError as e:
+        fail(f"cannot read {path}: {e}; nothing was changed")
+    safety = safety_copy(path, current, mode, "restore")
     os.replace(backup, path)
     print("restored the original; any changes made since the swap, including settings Omarchy saved, were replaced by the backup")
+    print(f"the file as it was just before is saved at {safety}")
 
 
 def reload_if_live(path):
@@ -312,7 +401,7 @@ def reload_if_live(path):
 def bind(path):
     with open(path) as f:
         text = f.read()
-    if MARK + BIND in text:
+    if any(MARK + b in text for b in [BIND] + OLD_BINDS):
         print("already bound: SUPER+CTRL+ALT+C opens the OmaColorBar settings")
         return
     if '"' + KEYS + '"' in text:
@@ -326,10 +415,11 @@ def bind(path):
 def unbind(path):
     with open(path) as f:
         text = f.read()
-    if MARK + BIND not in text:
+    ours = next((b for b in [BIND] + OLD_BINDS if MARK + b in text), None)
+    if ours is None:
         print("not bound; nothing to remove")
         return
-    write_atomic(path, text.replace(MARK + BIND, "", 1).encode(), os.stat(path).st_mode & 0o7777)
+    write_atomic(path, text.replace(MARK + ours, "", 1).encode(), os.stat(path).st_mode & 0o7777)
     reload_if_live(path)
     print("unbound SUPER+CTRL+ALT+C")
 
@@ -347,11 +437,13 @@ def main(argv):
     if args[0] == "setup":
         # The key goes into the live bindings only when the live shell.json is set up.
         live = path == os.path.realpath(DEFAULT)
-        setup(path, os.path.realpath(BINDINGS) if live else None)
+        setup(path, os.path.realpath(BINDINGS) if live else None, force)
     elif args[0] == "swap":
         swap(path, force)
     elif args[0] == "unswap":
-        unswap(path)
+        # The key goes away with the copies, so nothing is left behind when the plugin is removed.
+        live = path == os.path.realpath(DEFAULT) and "--keep-binding" not in argv
+        unswap(path, os.path.realpath(BINDINGS) if live else None)
     elif args[0] == "bind":
         bind(path)
     elif args[0] == "unbind":

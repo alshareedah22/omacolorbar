@@ -135,6 +135,8 @@ INDICATOR_COLORS = {
     "recording": ("#dc2626", "#f87171"),
     "dictation": ("#0ea5e9", "#a78bfa"),
     "reminder": ("#10b981", "#6ee7b7"),
+    "passwordlesssudo": ("#dc2626", "#f87171"),
+    "remotesession": ("#dc2626", "#f87171"),
 }
 INDICATOR_SHAPES = {
     "stayawake": ('<path d="M20 6 q4 4 0 8 q-4 4 0 8 M30 6 q4 4 0 8 q-4 4 0 8" fill="none" stroke="url(#b)" stroke-width="3.5" stroke-linecap="round"/>'
@@ -150,6 +152,13 @@ INDICATOR_SHAPES = {
     "recording": ('<circle cx="32" cy="32" r="24" fill="none" stroke="url(#a)" stroke-width="6"/>'
                   '<circle cx="32" cy="32" r="12" fill="url(#b)"/>'),
     "dictation": MIC.format(f="url(#a)", s="url(#b)"),
+    "passwordlesssudo": ('<path d="M32 4 L54 12 V30 C54 44 45 54 32 60 C19 54 10 44 10 30 V12 Z" fill="url(#a)"/>'
+                         '<circle cx="32" cy="27" r="7" fill="#ffffff"/>'
+                         '<path d="M32 33 V47 M32 41 h6 M32 47 h5" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>'),
+    "remotesession": ('<rect x="4" y="8" width="56" height="38" rx="5" fill="url(#a)"/>'
+                      '<rect x="9" y="13" width="46" height="28" rx="2" fill="url(#b)" opacity=".5"/>'
+                      '<path d="M24 22 L24 42 L30 37 L34 46 L39 44 L35 35 L43 35 Z" fill="#ffffff"/>'
+                      '<path d="M24 54 h16 l-3 -8 h-10 z" fill="url(#b)"/><rect x="18" y="54" width="28" height="4" rx="2" fill="url(#b)"/>'),
     "reminder": ('<path d="M8 16 a10 10 0 0 1 12 -8 M56 16 a10 10 0 0 0 -12 -8" fill="none" stroke="url(#b)" stroke-width="5" stroke-linecap="round"/>'
                  '<circle cx="32" cy="35" r="21" fill="url(#a)"/>'
                  '<path d="M32 22 V35 L41 41" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'),
@@ -160,6 +169,11 @@ def indicator(shape, colors):
     a, b = colors
     return framed(gradient("a", a, b) + gradient("b", b, a), INDICATOR_SHAPES[shape])
 
+
+# Omarchy 4.5 shows these when the network reports a captive portal or limited connectivity.
+LIMITED_BADGE = ('<circle cx="50" cy="50" r="13" fill="#f59e0b"/>'
+                 '<path d="M50 42 V51" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>'
+                 '<circle cx="50" cy="57" r="2.4" fill="#ffffff"/>')
 
 ICONS = {
     "menu-omarchy": lambda: icon("omarchy", "".join(
@@ -172,6 +186,12 @@ ICONS = {
         + "".join(f'<rect x="{x}" y="24" width="3" height="6" rx="1" fill="ACCENT"/>' for x in (22, 27, 32, 37))
         + '<rect x="26" y="50" width="12" height="8" fill="url(#b)"/>'
         '<rect x="14" y="13" width="20" height="3" rx="1.5" fill="#ffffff" opacity=".45"/>'),
+    "wifi-limited": lambda: icon("network", "".join(f'<path d="{d}" fill="url(#a)"/>' for d in ARCS) + LIMITED_BADGE),
+    "ethernet-limited": lambda: icon("network",
+        '<rect x="6" y="8" width="44" height="38" rx="7" fill="url(#a)"/>'
+        '<path d="M15 19 h26 v13 h-5 v5 h-16 v-5 h-5 z" fill="#0b3a53"/>'
+        + "".join(f'<rect x="{x}" y="21" width="3" height="6" rx="1" fill="ACCENT"/>' for x in (19, 24, 29, 34))
+        + '<rect x="22" y="46" width="12" height="6" fill="url(#b)"/>' + LIMITED_BADGE),
     "offline": lambda: icon("network", "".join(f'<path d="{d}" fill="{DIM}"/>' for d in ARCS) + SLASH_LINE),
     "bt-on": lambda: icon("bluetooth",
         '<rect x="14" y="4" width="36" height="56" rx="18" fill="url(#a)"/>'

@@ -4,6 +4,25 @@ Color icons for Omarchy's built-in bar widgets, with color drawings for weather,
 
 ![OmaColorBar: color icons in the Omarchy bar](preview.png)
 
+**Compatibility:** works with Omarchy 4.5 (checked on 4.5.0-3: manifest validation, the plugin's own tests, and every Omarchy component, command and bar interface it uses).
+
+## What's new in 1.4.1
+
+- **Omarchy 4.5**: color drawings for the icons 4.5 added. The network icon now has a Wi-Fi and an
+  Ethernet drawing with an amber warning badge for a captive portal or limited connection, and the
+  status indicators for passwordless sudo, remote session and the new stay-awake glyph have color
+  drawings too. Before, those states showed Omarchy's own gray glyph.
+- **Safer setup, undo and remove**: setup records a done-marker
+  (`~/.local/state/omacolorbar/setup-done`), so it runs once and re-adding a bare widget later
+  never swaps everything again; `colorbar setup --force` runs it on purpose. `colorbar restore`
+  first saves the current `shell.json` as `shell.json.omacolorbar-restore-<UTC time>`.
+  `colorbar unswap` now also removes the SUPER+CTRL+ALT+C line and the empty `plugins[]` entries
+  the swap added (entries with your settings stay); run it before `omarchy plugin remove`.
+  The key now runs `omarchy-shell omacolorbar toggleSettings` (old bindings are still removed by
+  `unbind`). A built-in that is on the bar twice only has its first copy swapped. Writes re-read
+  `shell.json` and redo the change if it changed meanwhile. Labels from apps and the tray render as
+  plain text.
+
 ## What's new in 1.4.0
 
 - **No setup step**: `omarchy plugin add https://github.com/alshareedah22/omacolorbar --enable` is the whole install. On first enable the plugin swaps every supported widget for its color copy and adds SUPER+CTRL+ALT+C (when that key is free) by itself.
@@ -53,7 +72,7 @@ That is all. Enabling puts one entry on the bar, which starts the plugin, and th
 - the bar before the change is saved as `~/.config/omarchy/shell.json.omacolorbar-backup`;
 - SUPER+CTRL+ALT+C opens the settings panel, added to `~/.config/hypr/bindings.lua` only if that key is free (`colorbar unbind` removes it).
 
-The setup runs only on that first enable, while no color copy is on the bar yet. Later changes, an `unswap`, or a widget you add by hand are never redone.
+The setup runs only once, on that first enable, while no color copy is on the bar yet; it then records a done-marker in `$XDG_STATE_HOME/omacolorbar/setup-done` (default `~/.local/state/omacolorbar/`). Later changes, an `unswap`, a `restore`, or a widget you add by hand are never redone. To run it again on purpose: `colorbar setup --force`.
 
 Manual setup is still there: `~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar swap` swaps a layout, `colorbar bind` adds the key. `colorbar swap` and `colorbar restore` take an optional path to a `shell.json` (default `~/.config/omarchy/shell.json`), for example `colorbar swap ~/test/shell.json`. `swap` changes nothing, and writes no backup, when the layout has no supported built-in.
 
@@ -124,7 +143,7 @@ Hides made with a right-click are stored in the Quickshell state folder, in `~/.
 One panel holds the settings of every copy. Open it with:
 
 - right-click on the logo (the `omarchy.menu` copy). This replaces Omarchy's right-click there, which opened a terminal.
-- SUPER+CTRL+ALT+C, after `colorbar bind` (adds one marked line to `~/.config/hypr/bindings.lua`; `colorbar unbind` removes it). The key runs `qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings`. `openTab Widgets|Appearance|"Open apps"` opens a given tab.
+- SUPER+CTRL+ALT+C, after `colorbar bind` (adds one marked line to `~/.config/hypr/bindings.lua`; `colorbar unbind` removes it). The key runs `omarchy-shell omacolorbar toggleSettings`. `openTab Widgets|Appearance|"Open apps"` opens a given tab.
 - middle-click on any copy. On microphone and agents, and over the tray's apps, plain middle-click keeps the widget's own action; use Shift+middle-click there.
 
 Tabs:
@@ -159,13 +178,13 @@ The built-in widget's own settings (for example `showPercentage` on power) live 
 ~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar unswap
 ```
 
-`unswap` is the gentle undo. It turns every OmaColorBar copy in `bar.layout` back into its built-in widget, in the same position, and keeps everything else you changed since the swap. It needs no backup. The built-ins' settings already live in `plugins[]`, so nothing else is needed. A copy's own keys (menuLogo, openApps, openAppsLimit, hiddenApps, showTerminals) are dropped. A bare `{"id":"blackcode.omacolorbar"}` without an icon means the network widget, so it becomes `{"id":"omarchy.network"}`, or is removed if `omarchy.network` is already on the bar. Before writing, it saves the previous file as `shell.json.omacolorbar-unswap-<UTC time>`. It does not touch the swap backup, and it prints "nothing to unswap" when there are no copies.
+`unswap` is the gentle undo. It turns every OmaColorBar copy in `bar.layout` back into its built-in widget, in the same position, and keeps everything else you changed since the swap. It needs no backup. The built-ins' settings already live in `plugins[]`, so nothing else is needed. A copy's own keys (menuLogo, openApps, openAppsLimit, hiddenApps, showTerminals) are dropped. A bare `{"id":"blackcode.omacolorbar"}` without an icon means the network widget, so it becomes `{"id":"omarchy.network"}`, or is removed if `omarchy.network` is already on the bar. It also removes the SUPER+CTRL+ALT+C line from `bindings.lua` (`--keep-binding` skips that) and the `plugins[]` entries the swap added when they hold no settings other than the id (entries with your settings stay). Before writing, it saves the previous file as `shell.json.omacolorbar-unswap-<UTC time>`. It does not touch the swap backup, and it prints "nothing to unswap" when there are no copies.
 
 ```bash
 ~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar restore
 ```
 
-`restore` is the second option. It puts the swap-time backup back as the whole file and removes it, so every change made since the swap, including settings Omarchy saved into `plugins[]`, is discarded. It refuses a backup that is not valid JSON or has no `bar.layout` object.
+`restore` is the second option. It puts the swap-time backup back as the whole file and removes it, so every change made since the swap, including settings Omarchy saved into `plugins[]`, is discarded. The backup is a snapshot from the time of the swap and may be old, so `restore` first saves the current file as `shell.json.omacolorbar-restore-<UTC time>` and prints its path; copy back from there if you need to. It refuses a backup that is not valid JSON or has no `bar.layout` object.
 
 `colorbar swap` refuses to run while a backup exists ("run restore first, or swap --force"). `swap --force` keeps the existing backup, which holds your original, and swaps the current file; it never overwrites the original.
 
@@ -173,15 +192,14 @@ You can also set the entries back by hand: replace `{"id":"blackcode.omacolorbar
 
 ## Remove
 
-Undo the swap first, then remove the plugin:
+**Run `colorbar unswap` BEFORE `omarchy plugin remove`.** The plugin has no uninstall hook, so the swapped layout and the Hyprland key survive a plain remove.
 
 ```bash
-~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar unbind
 ~/.config/omarchy/plugins/blackcode.omacolorbar/colorbar unswap
 omarchy plugin remove blackcode.omacolorbar
 ```
 
-`colorbar unbind` removes the SUPER+CTRL+ALT+C line if you added it (it does nothing otherwise).
+`unswap` also removes the SUPER+CTRL+ALT+C line if the plugin added it (`colorbar unbind` does only that).
 
 You can use `colorbar restore` instead of `unswap` if you want the old file back exactly.
 
@@ -226,4 +244,4 @@ The Arch Linux logo is a trademark of Arch Linux, shown unaltered in its officia
 
 ## License
 
-MIT
+The code of this plugin is MIT (see `LICENSE`). The files in `icons/` keep their own licenses, listed in `icons/LOGOS.md`: some distro logos are CC BY-SA, CC BY or GPL-3.0, and all logos remain trademarks of their projects. The Omarchy logo is traced from Omarchy's own font glyph (Omarchy is MIT, (c) David Heinemeier Hansson).

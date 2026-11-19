@@ -73,7 +73,7 @@ QtObject {
   // No setup step for the user: `omarchy plugin add ... --enable` puts one bare entry on the
   // bar, which starts this service, and `colorbar setup` turns every supported built-in into
   // a color copy and adds SUPER+CTRL+ALT+C when that key is free. It changes nothing once a
-  // copy has an icon, so it is safe on every start.
+  // copy has an icon or a first setup finished (done-marker), so it is safe on every start.
   property Process setup: Process {
     command: ["python3", "-I", decodeURIComponent(String(Qt.resolvedUrl("colorbar")).replace(/^file:\/\//, "")), "setup"]
     stdout: StdioCollector { onStreamFinished: if (text.trim() !== "already set up") console.info("OmaColorBar: " + text.trim()) }
@@ -83,7 +83,7 @@ QtObject {
   Component.onCompleted: setup.running = true
 
   // SUPER+CTRL+ALT+C (colorbar bind) runs:
-  //   qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings
+  //   omarchy-shell omacolorbar toggleSettings
   property IpcHandler ipc: IpcHandler {
     target: "omacolorbar"
 

@@ -157,7 +157,7 @@ Item {
 
   // A copy without an icon is the bare entry `omarchy plugin enable` just placed. Omarchy
   // starts plugin services only at shell start, so this copy runs the first setup itself
-  // (colorbar setup is a no-op once any copy has an icon). The delay lets the bar inject
+  // (colorbar setup is a no-op once any copy has an icon or a setup finished). The delay lets the bar inject
   // `settings` first.
   property Timer setupTimer: Timer {
     interval: 1000

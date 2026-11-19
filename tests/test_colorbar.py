@@ -346,7 +346,7 @@ class BindTest(unittest.TestCase):
         self.assertEqual(self.run_cli("bind", self.path).returncode, 0)
         text = self.read()
         self.assertIn('o.bind("SUPER + CTRL + ALT + C", "OmaColorBar settings", '
-                      '"qs -p /usr/share/omarchy/shell ipc call omacolorbar toggleSettings")', text)
+                      '"omarchy-shell omacolorbar toggleSettings")', text)
         self.assertTrue(text.startswith(self.original))
         self.assertEqual(self.run_cli("unbind", self.path).returncode, 0)
         self.assertEqual(self.read(), self.original)
@@ -463,3 +463,162 @@ class SetupTest(unittest.TestCase):
         r = subprocess.run([sys.executable, "-I", SCRIPT, "setup", self.path], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("bound", r.stdout)
+
+
+class SetupMarkerTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "shell.json")
+        self.bindings = os.path.join(self.dir.name, "bindings.lua")
+        with open(self.bindings, "w") as f:
+            f.write("-- mine\n")
+
+    def write(self, config):
+        with open(self.path, "w") as f:
+            json.dump(config, f)
+
+    def read(self):
+        with open(self.path) as f:
+            return json.load(f)
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True)
+
+    def test_setup_writes_the_marker_next_to_a_test_file_not_in_the_real_state_dir(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        self.assertTrue(os.path.exists(colorbar.marker_path(self.path)))
+        self.assertTrue(colorbar.marker_path(self.path).startswith(self.dir.name))
+
+    def test_a_bare_widget_added_later_does_not_swap_everything(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        self.run_cli("unswap", self.path)
+        later = self.read()
+        later["bar"]["layout"]["right"].append({"id": "blackcode.omacolorbar"})
+        later["bar"]["layout"]["left"].append({"id": "omarchy.audio"})
+        self.write(later)
+        self.assertTrue(colorbar.needs_setup(later))
+        with open(self.path, "rb") as f:
+            before = f.read()
+        r = self.run_cli("setup", self.path)
+        self.assertIn("already set up", r.stdout)
+        with open(self.path, "rb") as f:
+            self.assertEqual(f.read(), before)
+
+    def test_restore_leaves_the_marker(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        self.assertEqual(self.run_cli("restore", self.path).returncode, 0)
+        self.assertTrue(os.path.exists(colorbar.marker_path(self.path)))
+
+    def test_force_runs_setup_again(self):
+        self.write(FRESH)
+        colorbar.setup(self.path, self.bindings)
+        self.run_cli("unswap", self.path)
+        later = self.read()
+        later["bar"]["layout"]["right"].append({"id": "blackcode.omacolorbar"})
+        later["bar"]["layout"]["left"].append({"id": "omarchy.audio"})
+        self.write(later)
+        r = self.run_cli("setup", self.path, "--force")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("set up", r.stdout)
+        self.assertIn({"id": "blackcode.omacolorbar", "icon": "omarchy.audio"}, self.read()["bar"]["layout"]["left"])
+
+
+class DuplicateTest(unittest.TestCase):
+    def test_second_copy_of_a_builtin_stays_the_builtin_and_warns(self):
+        import contextlib
+        import io
+        config = {"bar": {"layout": {"left": [{"id": "omarchy.audio"}], "center": [],
+                                     "right": [{"id": "omarchy.audio"}]}}}
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = colorbar.swapped(config)
+        self.assertEqual(out["bar"]["layout"]["left"], [{"id": "blackcode.omacolorbar", "icon": "omarchy.audio"}])
+        self.assertEqual(out["bar"]["layout"]["right"], [{"id": "omarchy.audio"}])
+        self.assertIn("twice", err.getvalue())
+
+
+class UninstallTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "shell.json")
+        self.bindings = os.path.join(self.dir.name, "bindings.lua")
+
+    def write(self, config):
+        with open(self.path, "w") as f:
+            json.dump(config, f, indent=2)
+            f.write("\n")
+
+    def read(self):
+        with open(self.path) as f:
+            return json.load(f)
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True)
+
+    def test_unswap_removes_only_the_plugin_entries_without_settings(self):
+        self.write(SAMPLE)
+        self.assertEqual(self.run_cli("swap", self.path).returncode, 0)
+        self.assertEqual(self.run_cli("unswap", self.path).returncode, 0)
+        plugins = self.read()["plugins"]
+        self.assertEqual(plugins, [{"id": "omarchy.audio", "step": 5}, {"id": "omarchy.power", "showPercentage": True}])
+
+    def test_unswap_also_unbinds_and_keep_binding_skips_it(self):
+        self.write(SAMPLE)
+        with open(self.bindings, "w") as f:
+            f.write("-- mine\n")
+        colorbar.bind(self.bindings)
+        colorbar.unswap(self.path, self.bindings)
+        with open(self.bindings) as f:
+            self.assertEqual(f.read(), "-- mine\n")
+
+    def test_unbind_removes_a_binding_written_by_1_4_0(self):
+        with open(self.bindings, "w") as f:
+            f.write("-- mine\n" + colorbar.MARK + colorbar.OLD_BINDS[0])
+        colorbar.unbind(self.bindings)
+        with open(self.bindings) as f:
+            self.assertEqual(f.read(), "-- mine\n")
+
+    def test_new_binding_uses_omarchy_shell(self):
+        self.assertIn("omarchy-shell omacolorbar toggleSettings", colorbar.BIND)
+        self.assertNotIn("/usr/share/omarchy", colorbar.BIND)
+
+    def test_restore_writes_a_safety_copy_of_the_current_file(self):
+        self.write(SAMPLE)
+        self.run_cli("swap", self.path)
+        current = self.read()
+        current["idle"] = {"x": 99}
+        self.write(current)
+        with open(self.path, "rb") as f:
+            raw = f.read()
+        r = self.run_cli("restore", self.path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        copies = [n for n in os.listdir(self.dir.name) if ".omacolorbar-restore-" in n]
+        self.assertEqual(len(copies), 1)
+        self.assertIn(copies[0], r.stdout)
+        with open(os.path.join(self.dir.name, copies[0]), "rb") as f:
+            self.assertEqual(f.read(), raw)
+        self.assertEqual(self.read()["idle"], {"x": 1})
+
+    def test_a_change_during_the_transform_is_redone_on_the_new_content(self):
+        self.write(SAMPLE)
+        with open(self.path, "rb") as f:
+            raw = f.read()
+        calls = []
+
+        def compute(config):
+            if not calls:  # the file changes after the first read, before the write
+                other = json.loads(raw)
+                other["idle"] = {"x": 2}
+                self.write(other)
+            calls.append(1)
+            return colorbar.swapped(config)
+
+        raw2, result = colorbar.settle(self.path, raw, compute)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["idle"], {"x": 2})
+        self.assertNotEqual(raw2, raw)
